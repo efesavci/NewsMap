@@ -6,15 +6,22 @@ import javafx.application.Application;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.geometry.Point3D;
 import javafx.scene.*;
+import javafx.scene.control.Hyperlink;
 import javafx.scene.image.Image;
 import javafx.scene.image.PixelWriter;
 import javafx.scene.image.WritableImage;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.ScrollEvent;
+import javafx.scene.control.Label;
+import javafx.scene.layout.StackPane;
+import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import org.json.JSONArray;
 import org.json.JSONObject;
+
+import java.awt.*;
 import java.io.InputStream;
+import javafx.scene.control.Button;
 import javafx.scene.paint.PhongMaterial;
 import javafx.scene.shape.CullFace;
 import javafx.scene.shape.MeshView;
@@ -41,6 +48,9 @@ public class GlobeView extends Application {
     private Group root3D;
     private Group globeGroup;
     private PerspectiveCamera camera;
+    //newsPanel
+    private VBox newsPanel;
+    private boolean newsPanelVisible = false;
 
     // rotation state
     private double anchorX, anchorY;
@@ -48,12 +58,14 @@ public class GlobeView extends Application {
     private double anchorAngleY = 0;
     private final Rotate rotateX = new Rotate(0, Rotate.X_AXIS);
     private final Rotate rotateY = new Rotate(0, Rotate.Y_AXIS);
+    private final List<Hotspot> hotspots = new ArrayList<>();
 
     @Override
     public void start(Stage stage) {
 
         globeGroup = new Group();
         globeGroup.getTransforms().addAll(rotateX, rotateY);
+
 
         // === DATA GLOBE LAYER ===
         // 1. Borders mesh from GeoJSON (placeholder for now)
@@ -85,39 +97,65 @@ public class GlobeView extends Application {
         camera.setNearClip(0.1);
         camera.setFarClip(5000);
         camera.setTranslateZ(CAMERA_START_Z);
+        // ===NEWSPANEL===
+
+
+// initially hide panel content (slide out)
+
 
         // === SUBSCENE ===
         SubScene sub = new SubScene(root3D, 1200, 800, true, SceneAntialiasing.BALANCED);
-        sub.setFill(Color.web("#0b1020")); // deep dark blue/black bg
+        sub.setFill(Color.web("#0b1020")); // dark background
         sub.setCamera(camera);
 
-        // mouse rotate
+        // mouse rotate + scroll zoom
         enableMouseControl(sub);
-
-        // zoom with scroll
         sub.addEventHandler(ScrollEvent.SCROLL, e -> {
             double dz = e.getDeltaY() * 0.7;
-            double target = camera.getTranslateZ() + dz;
+            double target = camera.getTranslateZ() + dz; // note: we want scroll-up = zoom in
             if (target < CAMERA_MIN_Z) target = CAMERA_MIN_Z;
             if (target > CAMERA_MAX_Z) target = CAMERA_MAX_Z;
             camera.setTranslateZ(target);
         });
 
+        newsPanel = buildNewsPanel();
+        newsPanel.setMouseTransparent(false);      // let it eat clicks
+        newsPanel.setTranslateX(300);              // start hidden (off to right)
+        newsPanelVisible = false;
+
+        // anchor panel to right side of the StackPane
+        StackPane.setAlignment(newsPanel, javafx.geometry.Pos.CENTER_RIGHT);
+
+        // --- 4. StackPane root overlay:
+        // globe in back, panel on top of it
+        StackPane globeWrapper = new StackPane(sub);
+        globeWrapper.setStyle("-fx-background-color: #0b1020;");
+
+        StackPane rootLayout = new StackPane();
+        rootLayout.getChildren().addAll(globeWrapper, newsPanel);
+
+        // --- 5. Scene / stage setup ---
+        Scene scene = new Scene(rootLayout, 1200, 800);
+
+        // keep the SubScene synced to the window size
+        scene.widthProperty().addListener((obs, o, w) -> sub.setWidth(w.doubleValue()));
+        scene.heightProperty().addListener((obs, o, h) -> sub.setHeight(h.doubleValue()));
+
         // === waves demo ===
-        triggerWave(52.5200, 13.4050);    // Berlin
-        triggerWave(40.7128, -74.0060);   // New York
-        triggerWave(41.0082, 28.9784);    // Istanbul
+        /** * TODO Here must be the embedding + clustering and news fetching implemented (for sake of cleanness in another class)
+         *      and adjust the dummy Hotspots after fetching the news and listing them for each of the embedded locations we get.
+         *
+         * */
+        List<Article> list  = List.of(new Article("Trump says he's terminating trade talks with Canada over TV ad about tariffs", "ABC-NEWS", "https://abcnews.go.com/Politics/trump-terminating-trade-talks-canada-tv-ad-tariffs/story?id=126821528", System.currentTimeMillis()));
+        spawnHotspot(52.5200, 13.4050, list);    // Berlin
+        spawnHotspot(40.7128, -74.0060, list);   // New York
+        spawnHotspot(41.0082, 28.9784, list);    // Istanbul
 
         // === SCENE / STAGE ===
-        Group container = new Group(sub);
-        Scene scene = new Scene(container);
         stage.setTitle("News Globe (borders + pulses)");
         stage.setScene(scene);
         stage.show();
 
-        // keep SubScene sized with window
-        scene.widthProperty().addListener((obs, o, n) -> sub.setWidth(n.doubleValue()));
-        scene.heightProperty().addListener((obs, o, n) -> sub.setHeight(n.doubleValue()));
     }
 
     // -------------------------------------------------
@@ -143,6 +181,35 @@ public class GlobeView extends Application {
                 rotateY.setAngle(anchorAngleY - dx * sensitivity);
             }
         });
+    }
+    private void showNewsPanel() {
+        if (newsPanelVisible) return;
+        newsPanelVisible = true;
+
+        Timeline t = new Timeline(
+                new KeyFrame(Duration.millis(250),
+                        new KeyValue(newsPanel.translateXProperty(), 0, Interpolator.EASE_BOTH))
+        );
+        t.play();
+    }
+
+    private void hideNewsPanel() {
+        if (!newsPanelVisible) return;
+        newsPanelVisible = false;
+
+        Timeline t = new Timeline(
+                new KeyFrame(Duration.millis(250),
+                        new KeyValue(newsPanel.translateXProperty(), 300, Interpolator.EASE_BOTH))
+        );
+        t.play();
+    }
+
+    private void toggleNewsPanel() {
+        if (newsPanelVisible) {
+            hideNewsPanel();
+        } else {
+            showNewsPanel();
+        }
     }
 
     // -------------------------------------------------
@@ -382,55 +449,57 @@ public class GlobeView extends Application {
 
         return new Point3D(x, y, z);
     }
-    public void triggerWave(double latitudeDeg, double longitudeDeg) {
-        double startSize = 0.0;
-        double endSize = 15.0;
+    public void spawnHotspot(double latDeg, double lonDeg, List<Article> articles) {
 
-        double lat = Math.toRadians(latitudeDeg);
-        double lonAdj = Math.toRadians(longitudeDeg);
-        double r = EARTH_RADIUS + 2.5;
+        // Position in 3D
+        Point3D center = latLonToPoint(latDeg, lonDeg, EARTH_RADIUS + 2.5);
 
-        double x = r * Math.cos(lat) * Math.cos(lonAdj);
-        double y = r * Math.sin(lat);
-        double z = r * Math.cos(lat) * Math.sin(lonAdj);
-
-        // Note: your scene uses -y when placing nodes
-        Point3D center = new Point3D(x, -y, z);
-
-
-        // 2) Build a tangent basis (u, v) on the globe surface at 'center'
-        Point3D n = center.normalize(); // outward normal (since globe center is origin)
-        Point3D up = new Point3D(0,1,0);
-        if (Math.abs(n.normalize().dotProduct(up)) > 0.99) {
+        // Build tangent basis for wave quad
+        Point3D n = center.normalize();
+        Point3D up = new Point3D(0, -1, 0);
+        if (Math.abs(n.dotProduct(up)) > 0.99) {
             up = new Point3D(1, 0, 0);
         }
         Point3D u = up.crossProduct(n).normalize();
         Point3D v = n.crossProduct(u).normalize();
 
+        // Material (ring texture)
         Image ring = makeRingTexture(256, Color.RED);
         PhongMaterial mat = new PhongMaterial();
         mat.setDiffuseMap(ring);
         mat.setSpecularColor(Color.TRANSPARENT);
 
         double baseOpacity = 0.3;
+        double startSize = 0.0;
+        double endSize = 15.0;
+
         Group waveGroup = new Group();
+        waveGroup.setPickOnBounds(true);
         globeGroup.getChildren().add(waveGroup);
 
         for (int i = 0; i < 2; i++) {
-            // each wave gets its own mesh so they animate independently
             TriangleMesh mesh = new TriangleMesh();
-            mesh.getTexCoords().addAll(0,0, 1,0, 1,1, 0,1);
-            mesh.getFaces().addAll(0,0, 1,1, 2,2, 0,0, 2,2, 3,3);
+            mesh.getTexCoords().addAll(
+                    0,0,
+                    1,0,
+                    1,1,
+                    0,1
+            );
+            mesh.getFaces().addAll(
+                    0,0, 1,1, 2,2,
+                    0,0, 2,2, 3,3
+            );
 
             MeshView wave = new MeshView(mesh);
             wave.setMaterial(mat);
-            wave.setCullFace(javafx.scene.shape.CullFace.NONE);
-            wave.setDepthTest(javafx.scene.DepthTest.ENABLE);
+            wave.setCullFace(CullFace.NONE);
+            wave.setDepthTest(DepthTest.ENABLE);
             wave.setBlendMode(javafx.scene.effect.BlendMode.ADD);
             wave.setOpacity(0.0);
 
-            // size property + updater for this wave
+            // size property animation
             DoubleProperty sizeProp = new SimpleDoubleProperty(startSize);
+
             Runnable updater = () -> {
                 double zoom = globeGroup.getScaleX();
                 double s = sizeProp.get() * zoom;
@@ -445,6 +514,8 @@ public class GlobeView extends Application {
                         (float)p3.getX(), (float)p3.getY(), (float)p3.getZ()
                 );
             };
+
+            // keep quad updated
             sizeProp.addListener((obs, o, p) -> updater.run());
             globeGroup.scaleXProperty().addListener((obs, o, p) -> updater.run());
             globeGroup.scaleYProperty().addListener((obs, o, p) -> updater.run());
@@ -453,7 +524,6 @@ public class GlobeView extends Application {
 
             waveGroup.getChildren().add(wave);
 
-            // one wave’s animation: fade from baseOpacity to 0 while scaling out
             Timeline anim = new Timeline(
                     new KeyFrame(Duration.ZERO,
                             new KeyValue(wave.opacityProperty(), baseOpacity),
@@ -469,13 +539,106 @@ public class GlobeView extends Application {
             anim.play();
         }
 
-
+        // this keeps the pulsing effect looping by recreating it
         PauseTransition repeatPause = new PauseTransition(Duration.seconds(2.0));
         repeatPause.setOnFinished(e -> {
             globeGroup.getChildren().remove(waveGroup);
-            triggerWave(latitudeDeg, longitudeDeg);
+            spawnHotspot(latDeg, lonDeg, articles);
         });
         repeatPause.play();
+
+        // Create hotspot record and make it clickable.
+        Hotspot hs = new Hotspot(latDeg, lonDeg, articles, waveGroup);
+
+        waveGroup.setOnMouseClicked(e -> {
+            if (e.isStillSincePress()) {
+                onHotspotClicked(hs); // <- this will open / fill the side panel
+            }
+            e.consume();
+        });
+
+        hotspots.add(hs);
+    }
+    private VBox buildNewsPanel() {
+        VBox box = new VBox();
+        box.setStyle("""
+        -fx-background-color: rgba(15,23,42,0.9); /* dark slate w/ alpha */
+        -fx-padding: 16;
+        -fx-spacing: 12;
+        -fx-text-fill: #f8fafc; /* near-white */
+    """);
+        box.setPrefWidth(300);
+        box.setMinWidth(300);
+        box.setMaxWidth(300);
+        return box;
+    }
+
+    private void onHotspotClicked(Hotspot hs) {
+        newsPanel.getChildren().clear();
+
+        Label header = new Label(
+                "Breaking near (" + round2(hs.latDeg) + "°, " + round2(hs.lonDeg) + "°)"
+        );
+        header.setStyle("""
+        -fx-text-fill: #f8fafc;
+        -fx-font-size: 16px;
+        -fx-font-weight: bold;
+    """);
+        newsPanel.getChildren().add(header);
+        List<Article> arts = (hs.articles == null) ? List.of() : hs.articles;
+        int limit = Math.min(5, arts.size());
+        for (int i = 0; i < limit; i++) {
+            Article a = arts.get(i);
+
+            VBox card = new VBox();
+            card.setStyle("""
+            -fx-background-color: rgba(30,41,59,0.6);
+            -fx-padding: 8;
+            -fx-background-radius: 8;
+            -fx-spacing: 4;
+        """);
+
+            Label titleLbl = new Label(a.title);
+            titleLbl.setStyle("""
+            -fx-text-fill: #e2e8f0;
+            -fx-font-size: 14px;
+            -fx-font-weight: bold;
+        """);
+
+            Label sourceLbl = new Label(a.source);
+            sourceLbl.setStyle("""
+            -fx-text-fill: #94a3b8;
+            -fx-font-size: 12px;
+        """);
+
+            Hyperlink linkLbl = new Hyperlink(a.url);
+            linkLbl.setStyle("""
+            -fx-text-fill: #38bdf8;
+            -fx-font-size: 12px;
+        """);
+            linkLbl.setOnAction(e -> getHostServices().showDocument(a.url));
+
+            card.getChildren().addAll(titleLbl, sourceLbl, linkLbl);
+            newsPanel.getChildren().add(card);
+        }
+
+        Button closeBtn = new Button("Close");
+        closeBtn.setStyle("""
+        -fx-background-color: #1e293b;
+        -fx-text-fill: #f8fafc;
+        -fx-background-radius: 6;
+        -fx-padding: 6 10;
+        -fx-font-size: 12px;
+    """);
+        closeBtn.setOnAction(e -> hideNewsPanel());
+        newsPanel.getChildren().add(closeBtn);
+
+        showNewsPanel();
+    }
+
+
+    private static double round2(double value) {
+        return Math.round(value * 100.0) / 100.0;
     }
 
     private Image makeRingTexture(int size, Color color) {

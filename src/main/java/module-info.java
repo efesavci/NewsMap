@@ -11,6 +11,7 @@ module com.example.newsmapdumen {
     requires eu.hansolo.tilesfx;
     requires com.almasb.fxgl.all;
     requires org.json;
+    requires java.desktop;
 
     opens com.example.newsmapdumen to javafx.fxml;
     exports com.example.newsmapdumen;
