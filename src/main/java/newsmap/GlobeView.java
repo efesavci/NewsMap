@@ -1,4 +1,4 @@
-package com.example.newsmapdumen;
+package newsmap;
 
 import javafx.animation.*;
 import javafx.beans.property.DoubleProperty;
@@ -19,13 +19,11 @@ import javafx.scene.paint.Color;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import java.awt.*;
 import java.io.InputStream;
 import javafx.scene.control.Button;
 import javafx.scene.paint.PhongMaterial;
 import javafx.scene.shape.CullFace;
 import javafx.scene.shape.MeshView;
-import javafx.scene.shape.Sphere;
 import javafx.scene.shape.TriangleMesh;
 import javafx.scene.transform.Rotate;
 import javafx.scene.transform.Translate;
@@ -77,13 +75,6 @@ public class GlobeView extends Application {
 
         // Add borders to globe group
         globeGroup.getChildren().add(bordersView);
-
-        // Optional: debugging sphere (invisible / dev only)
-        // This just helps to see the "planet core"
-        Sphere debugCore = new Sphere(EARTH_RADIUS);
-        debugCore.setMaterial(new PhongMaterial(Color.web("#1f2937"))); // dark gray land-ish fill
-        debugCore.setCullFace(CullFace.FRONT); // draw back faces only if you want a hollow look, you can also remove this line
-        globeGroup.getChildren().add(debugCore);
 
         // === LIGHTS ===
         AmbientLight ambient = new AmbientLight(Color.color(0.5, 0.5, 0.5));
@@ -315,11 +306,6 @@ public class GlobeView extends Application {
             }
             String jsonText = new String(is.readAllBytes(), StandardCharsets.UTF_8);
 
-            // debug preview
-            System.out.println("=== DEBUG world.json start ===");
-            System.out.println(jsonText.substring(0, Math.min(jsonText.length(), 400)));
-            System.out.println("=== DEBUG world.json end ===");
-
             JSONObject root = new JSONObject(jsonText);
 
             BorderMeshBuilder builder = new BorderMeshBuilder();
@@ -444,7 +430,7 @@ public class GlobeView extends Application {
         double lon = Math.toRadians(lonDeg);
 
         double x = radius * Math.cos(lat) * Math.cos(lon);
-        double y = -radius * Math.sin(lat);            // minus: so north is visually "up"
+        double y = -radius * Math.sin(lat);           // minus: so north is visually "up"
         double z = radius * Math.cos(lat) * Math.sin(lon);
 
         return new Point3D(x, y, z);

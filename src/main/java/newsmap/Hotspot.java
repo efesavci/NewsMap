@@ -1,4 +1,4 @@
-package com.example.newsmapdumen;
+package newsmap;
 
 import javafx.scene.Group;
 

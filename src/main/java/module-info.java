@@ -13,6 +13,6 @@ module com.example.newsmapdumen {
     requires org.json;
     requires java.desktop;
 
-    opens com.example.newsmapdumen to javafx.fxml;
-    exports com.example.newsmapdumen;
+    opens newsmap to javafx.fxml;
+    exports newsmap;
 }

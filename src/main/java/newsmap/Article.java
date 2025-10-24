@@ -1,4 +1,4 @@
-package com.example.newsmapdumen;
+package newsmap;
 
 public class Article {
     public final String title;
