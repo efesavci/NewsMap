@@ -5,9 +5,9 @@
 /bin/
 /.apt_generated/
 /dependency-reduced-pom.xml
-/mvnw
-/mvnw.cmd
-/.mvn/
+#/mvnw
+#/mvnw.cmd
+#/.mvn/
 
 # === IntelliJ IDEA ===
 .idea/
@@ -46,11 +46,11 @@ Thumbs.db
 */java_pid*.hprof
 
 # === Optional: image cache, screenshots, etc. ===
-*.png
-*.jpg
-*.jpeg
-*.gif
-*.mp4
+#*.png
+#*.jpg
+#*.jpeg
+#*.gif
+#*.mp4
 
 # Keep your resources (textures, GeoJSON, etc.)
 # Comment out the line above if you want to keep *.jpg or *.geojson in git.
