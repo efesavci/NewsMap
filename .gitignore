@@ -1,0 +1,56 @@
+# === Java & Maven / Gradle build ===
+/target/
+/build/
+/out/
+/bin/
+/.apt_generated/
+/dependency-reduced-pom.xml
+/mvnw
+/mvnw.cmd
+/.mvn/
+
+# === IntelliJ IDEA ===
+.idea/
+/*.iml
+*.iws
+*.ipr
+
+# === Eclipse ===
+.classpath
+.project
+.settings/
+
+# === VS Code ===
+.vscode/
+
+# === OS / Environment ===
+.DS_Store
+Thumbs.db
+
+# === Logs, temp files ===
+*.log
+*.tmp
+*.swp
+*.bak
+*.old
+
+# === Java ===
+*.class
+*.jar
+*.war
+*.ear
+
+# === JavaFX / generated runtime caches ===
+*/hs_err_pid*.log
+*/replay_pid*.log
+*/java_pid*.hprof
+
+# === Optional: image cache, screenshots, etc. ===
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.mp4
+
+# Keep your resources (textures, GeoJSON, etc.)
+# Comment out the line above if you want to keep *.jpg or *.geojson in git.
