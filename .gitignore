@@ -15,6 +15,13 @@
 *.iws
 *.ipr
 
+
+# JetBrains IDE configs
+native/.idea
+*.iml
+cmake-build-*/
+
+
 # === Eclipse ===
 .classpath
 .project
