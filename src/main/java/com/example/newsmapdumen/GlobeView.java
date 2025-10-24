@@ -12,7 +12,11 @@ import javafx.scene.image.WritableImage;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.ScrollEvent;
 import javafx.scene.paint.Color;
+import org.json.JSONArray;
+import org.json.JSONObject;
+import java.io.InputStream;
 import javafx.scene.paint.PhongMaterial;
+import javafx.scene.shape.CullFace;
 import javafx.scene.shape.MeshView;
 import javafx.scene.shape.Sphere;
 import javafx.scene.shape.TriangleMesh;
@@ -22,17 +26,23 @@ import javafx.stage.Stage;
 
 import javafx.util.Duration;
 
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+
 public class GlobeView extends Application {
 
     private static final double EARTH_RADIUS = 300;
-    private static final double MARKER_RADIUS = 4;
     private static final double CAMERA_START_Z = -900;
-    private static final String EARTH_TEXTURE_PATH = "earth.jpg";
+    private static final double CAMERA_MIN_Z = -2500;
+    private static final double CAMERA_MAX_Z = -450;
+    ;
 
     private Group root3D;
     private Group globeGroup;
     private PerspectiveCamera camera;
 
+    // rotation state
     private double anchorX, anchorY;
     private double anchorAngleX = 0;
     private double anchorAngleY = 0;
@@ -41,70 +51,79 @@ public class GlobeView extends Application {
 
     @Override
     public void start(Stage stage) {
-        root3D = new Group();
-        Sphere earth = new Sphere(EARTH_RADIUS);
+
         globeGroup = new Group();
-        globeGroup.setScaleY(0.99665);
         globeGroup.getTransforms().addAll(rotateX, rotateY);
 
-        // --- Earth sphere
+        // === DATA GLOBE LAYER ===
+        // 1. Borders mesh from GeoJSON (placeholder for now)
+        MeshView bordersView = buildBordersMeshFromGeoJSON("world.json");
 
-        PhongMaterial mat = new PhongMaterial(Color.LIGHTGRAY);
-        try {
-            Image texture = new Image(EARTH_TEXTURE_PATH);
-            mat.setDiffuseMap(texture);
-            mat.setSpecularColor(Color.gray(0.2));
-        } catch (Exception e) {
-            System.out.println("Couldn't load earth texture: " + e.getMessage());
-        }
-        earth.setMaterial(mat);
-        globeGroup.getChildren().add(earth);
+        // Borders material: light gray lines
+        PhongMaterial borderMat = new PhongMaterial(Color.web("#6b7280")); // medium-gray
+        bordersView.setMaterial(borderMat);
 
-        // --- Lighting
-        AmbientLight ambient = new AmbientLight(Color.color(0.7, 0.7, 0.7));
+        // Add borders to globe group
+        globeGroup.getChildren().add(bordersView);
+
+        // Optional: debugging sphere (invisible / dev only)
+        // This just helps to see the "planet core"
+        Sphere debugCore = new Sphere(EARTH_RADIUS);
+        debugCore.setMaterial(new PhongMaterial(Color.web("#1f2937"))); // dark gray land-ish fill
+        debugCore.setCullFace(CullFace.FRONT); // draw back faces only if you want a hollow look, you can also remove this line
+        globeGroup.getChildren().add(debugCore);
+
+        // === LIGHTS ===
+        AmbientLight ambient = new AmbientLight(Color.color(0.5, 0.5, 0.5));
         PointLight sun = new PointLight(Color.WHITE);
         sun.getTransforms().add(new Translate(-1000, -400, -1200));
-        root3D.getChildren().addAll(globeGroup, ambient, sun);
 
-        // --- Camera
+        root3D = new Group(globeGroup, ambient, sun);
+
+        // === CAMERA ===
         camera = new PerspectiveCamera(true);
         camera.setNearClip(0.1);
         camera.setFarClip(5000);
         camera.setTranslateZ(CAMERA_START_Z);
 
-        // --- SubScene
+        // === SUBSCENE ===
         SubScene sub = new SubScene(root3D, 1200, 800, true, SceneAntialiasing.BALANCED);
-        sub.setFill(Color.web("#0b1020"));
+        sub.setFill(Color.web("#0b1020")); // deep dark blue/black bg
         sub.setCamera(camera);
 
-        // --- Mouse controls only (no auto rotation)
+        // mouse rotate
         enableMouseControl(sub);
 
-        // --- Zoom
+        // zoom with scroll
         sub.addEventHandler(ScrollEvent.SCROLL, e -> {
             double dz = e.getDeltaY() * 0.7;
-            double target = camera.getTranslateZ() + (-dz);
-            target = clamp(target, -2500, -450);
+            double target = camera.getTranslateZ() + dz;
+            if (target < CAMERA_MIN_Z) target = CAMERA_MIN_Z;
+            if (target > CAMERA_MAX_Z) target = CAMERA_MAX_Z;
             camera.setTranslateZ(target);
         });
 
-        // Example markers
+        // === waves demo ===
         triggerWave(52.5200, 13.4050);    // Berlin
-        triggerWave(40.7128, -74.0060);  // New York
+        triggerWave(40.7128, -74.0060);   // New York
+        triggerWave(41.0082, 28.9784);    // Istanbul
 
-        // --- Scene
+        // === SCENE / STAGE ===
         Group container = new Group(sub);
         Scene scene = new Scene(container);
-        stage.setTitle("3D Globe (mouse-controlled)");
+        stage.setTitle("News Globe (borders + pulses)");
         stage.setScene(scene);
         stage.show();
 
+        // keep SubScene sized with window
         scene.widthProperty().addListener((obs, o, n) -> sub.setWidth(n.doubleValue()));
         scene.heightProperty().addListener((obs, o, n) -> sub.setHeight(n.doubleValue()));
     }
 
+    // -------------------------------------------------
+    // INTERACTION
+    // -------------------------------------------------
     private void enableMouseControl(SubScene sub) {
-
         sub.setOnMousePressed(e -> {
             if (e.getButton() == MouseButton.PRIMARY) {
                 anchorX = e.getSceneX();
@@ -119,18 +138,256 @@ public class GlobeView extends Application {
                 double dx = e.getSceneX() - anchorX;
                 double dy = e.getSceneY() - anchorY;
                 double sensitivity = 0.06;
-                rotateX.setAngle(clamp((anchorAngleX + dy * sensitivity), -90, 90));
+                // clamp X tilt so you can't flip under the south pole
+                rotateX.setAngle(clamp(anchorAngleX + dy * sensitivity, -90, 90));
                 rotateY.setAngle(anchorAngleY - dx * sensitivity);
             }
         });
     }
 
+    // -------------------------------------------------
+    // GEOJSON -> BORDER MESH (stub for now)
+    // -------------------------------------------------
+    private static class BorderMeshBuilder {
+        // We store all vertex positions in a float list
+        private final List<Float> pts = new ArrayList<>();
+        // Each face in TriangleMesh is: pIndex/tIndex pairs. We'll reuse a single texCoord (0,0),
+        // so the tIndex is always 0.
+        private final List<Integer> faces = new ArrayList<>();
+
+        // add a single vertex to pts list, return its index
+        int addPoint(Point3D p) {
+            int idx = pts.size() / 3;
+            pts.add((float) p.getX());
+            pts.add((float) p.getY());
+            pts.add((float) p.getZ());
+            return idx;
+        }
+
+        // given four corner points of a quad (A_up, B_up, B_dn, A_dn)
+        // we split into two triangles: (0,1,2) and (0,2,3)
+        void addQuad(Point3D aUp, Point3D bUp, Point3D bDn, Point3D aDn) {
+            int i0 = addPoint(aUp);
+            int i1 = addPoint(bUp);
+            int i2 = addPoint(bDn);
+            int i3 = addPoint(aDn);
+
+            // Triangle 1: i0, i1, i2
+            faces.add(i0); faces.add(0);
+            faces.add(i1); faces.add(0);
+            faces.add(i2); faces.add(0);
+
+            // Triangle 2: i0, i2, i3
+            faces.add(i0); faces.add(0);
+            faces.add(i2); faces.add(0);
+            faces.add(i3); faces.add(0);
+        }
+
+        TriangleMesh buildMesh() {
+            TriangleMesh mesh = new TriangleMesh();
+
+            // dump points
+            float[] pointsArray = new float[pts.size()];
+            for (int i = 0; i < pts.size(); i++) {
+                pointsArray[i] = pts.get(i);
+            }
+            mesh.getPoints().addAll(pointsArray);
+
+            // We only use one dummy texCoord (0,0)
+            mesh.getTexCoords().addAll(0f, 0f);
+
+            // dump faces
+            int[] facesArray = new int[faces.size()];
+            for (int i = 0; i < faces.size(); i++) {
+                facesArray[i] = faces.get(i);
+            }
+            mesh.getFaces().addAll(facesArray);
+
+            return mesh;
+        }
+    }
+    private void addBorderRing(BorderMeshBuilder builder,
+                               List<double[]> ringLatLon,
+                               double radius,
+                               double halfWidth) {
+        // ringLatLon is like [ [lon,lat], [lon,lat], ... ]
+        // We'll connect point i -> i+1, and also last -> first.
+
+        int n = ringLatLon.size();
+        for (int i = 0; i < n; i++) {
+            double[] aLL = ringLatLon.get(i);
+            double[] bLL = ringLatLon.get((i+1) % n); // wrap to first
+
+            double lonA = aLL[0];
+            double latA = aLL[1];
+            double lonB = bLL[0];
+            double latB = bLL[1];
+
+            Point3D A3 = latLonToPoint(latA, lonA, radius);
+            Point3D B3 = latLonToPoint(latB, lonB, radius);
+
+            Point3D d = B3.subtract(A3);       // segment direction
+            Point3D nrm = A3.normalize();      // surface normal at A (roughly radial)
+            Point3D s = d.crossProduct(nrm).normalize(); // sideways vector along surface
+
+            Point3D A_up = A3.add(s.multiply(halfWidth));
+            Point3D A_dn = A3.subtract(s.multiply(halfWidth));
+            Point3D B_up = B3.add(s.multiply(halfWidth));
+            Point3D B_dn = B3.subtract(s.multiply(halfWidth));
+
+            builder.addQuad(A_up, B_up, B_dn, A_dn);
+        }
+    }
+    private MeshView buildBordersMeshFromGeoJSON(String resourcePath) {
+        try {
+            // 1. load file from resources
+            InputStream is = getClass().getResourceAsStream("/" + resourcePath);
+            if (is == null) {
+                System.err.println("Could not find " + resourcePath + " on classpath.");
+                return emptyMeshView();
+            }
+            String jsonText = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+
+            // debug preview
+            System.out.println("=== DEBUG world.json start ===");
+            System.out.println(jsonText.substring(0, Math.min(jsonText.length(), 400)));
+            System.out.println("=== DEBUG world.json end ===");
+
+            JSONObject root = new JSONObject(jsonText);
+
+            BorderMeshBuilder builder = new BorderMeshBuilder();
+            double radius = EARTH_RADIUS + 0.5;  // slightly above globe surface
+            double halfWidth = 0.2;              // line thickness
+
+            if (root.has("features")) {
+                // ---------------------------------
+                // CASE A: FeatureCollection
+                // ---------------------------------
+                JSONArray features = root.getJSONArray("features");
+                for (int f = 0; f < features.length(); f++) {
+                    JSONObject feature = features.getJSONObject(f);
+                    JSONObject geom = feature.getJSONObject("geometry");
+                    addGeometryToBuilder(geom, builder, radius, halfWidth);
+                }
+
+            } else if ("GeometryCollection".equals(root.optString("type"))) {
+                // ---------------------------------
+                // CASE B: GeometryCollection
+                // ---------------------------------
+                JSONArray geoms = root.getJSONArray("geometries");
+                for (int g = 0; g < geoms.length(); g++) {
+                    JSONObject geom = geoms.getJSONObject(g);
+                    addGeometryToBuilder(geom, builder, radius, halfWidth);
+                }
+
+            } else if (root.has("type") && root.has("coordinates")) {
+                // ---------------------------------
+                // CASE C: bare Polygon / MultiPolygon
+                // ---------------------------------
+                addGeometryToBuilder(root, builder, radius, halfWidth);
+
+            } else {
+                System.err.println("JSON root is not FeatureCollection / GeometryCollection / Polygon / MultiPolygon. Keys: " + root.keySet());
+            }
+
+            TriangleMesh mesh = builder.buildMesh();
+            MeshView mv = new MeshView(mesh);
+            mv.setCullFace(CullFace.NONE);
+            mv.setDepthTest(DepthTest.ENABLE);
+            return mv;
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return emptyMeshView();
+        }
+    }
+    private MeshView emptyMeshView() {
+        TriangleMesh mesh = new TriangleMesh();
+        // JavaFX requires at least one texture coordinate, or it throws an exception
+        mesh.getTexCoords().addAll(0f, 0f);
+        MeshView mv = new MeshView(mesh);
+        mv.setCullFace(CullFace.NONE);
+        mv.setDepthTest(DepthTest.ENABLE);
+        return mv;
+    }
+    private void addGeometryToBuilder(JSONObject geom,
+                                      BorderMeshBuilder builder,
+                                      double radius,
+                                      double halfWidth) {
+
+        String geomType = geom.getString("type");
+
+        if (geomType.equals("Polygon")) {
+            // coordinates: [ [ [lon,lat], [lon,lat], ... ], [hole...], ... ]
+            JSONArray rings = geom.getJSONArray("coordinates");
+            if (rings.length() == 0) return;
+
+            // outer ring = rings[0]
+            JSONArray outer = rings.getJSONArray(0);
+
+            List<double[]> ringLatLon = new ArrayList<>(outer.length());
+            for (int i = 0; i < outer.length(); i++) {
+                JSONArray coord = outer.getJSONArray(i);
+                double lon = coord.getDouble(0);
+                double lat = coord.getDouble(1);
+                ringLatLon.add(new double[]{lon, lat});
+            }
+
+            addBorderRing(builder, ringLatLon, radius, halfWidth);
+
+        } else if (geomType.equals("MultiPolygon")) {
+            // coordinates: [
+            //   [ [ [lon,lat], ... ], [hole...] ],
+            //   [ [ [lon,lat], ... ], ... ],
+            //   ...
+            // ]
+            JSONArray polys = geom.getJSONArray("coordinates");
+
+            for (int p = 0; p < polys.length(); p++) {
+                JSONArray rings = polys.getJSONArray(p);
+                if (rings.length() == 0) continue;
+
+                // again: outer ring only
+                JSONArray outer = rings.getJSONArray(0);
+
+                List<double[]> ringLatLon = new ArrayList<>(outer.length());
+                for (int i = 0; i < outer.length(); i++) {
+                    JSONArray coord = outer.getJSONArray(i);
+                    double lon = coord.getDouble(0);
+                    double lat = coord.getDouble(1);
+                    ringLatLon.add(new double[]{lon, lat});
+                }
+
+                addBorderRing(builder, ringLatLon, radius, halfWidth);
+            }
+
+        } else {
+            // We skip LineString / Point etc. for now.
+            // You *could* handle LineString here if your dataset has coastlines as LineStrings.
+            // System.out.println("Skipping geometry type: " + geomType);
+        }
+    }
+
+
+    // -------------------------------------------------
+    // LAT/LON -> 3D POINT ON GLOBE
+    // -------------------------------------------------
+    private Point3D latLonToPoint(double latDeg, double lonDeg, double radius) {
+        double lat = Math.toRadians(latDeg);
+        double lon = Math.toRadians(lonDeg);
+
+        double x = radius * Math.cos(lat) * Math.cos(lon);
+        double y = -radius * Math.sin(lat);            // minus: so north is visually "up"
+        double z = radius * Math.cos(lat) * Math.sin(lon);
+
+        return new Point3D(x, y, z);
+    }
     public void triggerWave(double latitudeDeg, double longitudeDeg) {
         double startSize = 0.0;
         double endSize = 15.0;
 
-        double lat = Math.toRadians(latitudeDeg - 17.0);
-        double lonAdj = Math.toRadians(longitudeDeg - 90.0);
+        double lat = Math.toRadians(latitudeDeg);
+        double lonAdj = Math.toRadians(longitudeDeg);
         double r = EARTH_RADIUS + 2.5;
 
         double x = r * Math.cos(lat) * Math.cos(lonAdj);
@@ -139,6 +396,7 @@ public class GlobeView extends Application {
 
         // Note: your scene uses -y when placing nodes
         Point3D center = new Point3D(x, -y, z);
+
 
         // 2) Build a tangent basis (u, v) on the globe surface at 'center'
         Point3D n = center.normalize(); // outward normal (since globe center is origin)

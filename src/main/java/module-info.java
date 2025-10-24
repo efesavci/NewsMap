@@ -10,6 +10,7 @@ module com.example.newsmapdumen {
     requires org.kordamp.bootstrapfx.core;
     requires eu.hansolo.tilesfx;
     requires com.almasb.fxgl.all;
+    requires org.json;
 
     opens com.example.newsmapdumen to javafx.fxml;
     exports com.example.newsmapdumen;
