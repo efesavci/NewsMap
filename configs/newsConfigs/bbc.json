@@ -1,0 +1,13 @@
+{
+  "baseUrl": "https://www.bbc.com/news",
+  "topicSelectors": [
+    "a[data-testid='subNavigationLink'][href^='/news/']"
+  ],
+  "articleSelectors": [
+    "a[data-testid='internal-link'][href^='/news/articles/']"
+  ],
+  "articleTitle": "h1",
+  "articleTime": "time[datetime]",
+  "articleBody": "div[data-component='text-block']",
+  "maxDepth": 4
+}
