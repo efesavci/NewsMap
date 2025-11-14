@@ -62,7 +62,6 @@ public class GlobePane extends StackPane {
         overlay = new OverlayPane(this);
         overlay.setMouseTransparent(true);
         StackPane.setAlignment(overlay, Pos.TOP_LEFT);
-        System.out.println(globe.getGlobeGroup().getChildren().toString());
 
         newsPanel = new NewsPanel();
         newsPanel.setMouseTransparent(false);

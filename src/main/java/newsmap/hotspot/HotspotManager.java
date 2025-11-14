@@ -55,7 +55,7 @@ public class HotspotManager {
         Point3D v = n.crossProduct(u).normalize();
 
 
-        Image ring = textures.makeRingTexture(256, Color.RED);
+        Image ring = textures.makeRingTexture(128, Color.RED);
         PhongMaterial mat = new PhongMaterial();
         mat.setDiffuseMap(ring);
         mat.setSpecularColor(Color.TRANSPARENT);
@@ -76,7 +76,7 @@ public class HotspotManager {
 
 
             final double startSize = 0.0;
-            final double endSize = 15.0;
+            final double endSize = 10.0;
             final double baseOpacity = 0.30;
 
             DoubleProperty sizeProp = new SimpleDoubleProperty(startSize);
@@ -109,13 +109,13 @@ public class HotspotManager {
                             new KeyValue(wave.opacityProperty(), baseOpacity),
                             new KeyValue(sizeProp, startSize)
                     ),
-                    new KeyFrame(Duration.seconds(2.0),
+                    new KeyFrame(Duration.seconds(3.0),
                             new KeyValue(wave.opacityProperty(), 0.0),
                             new KeyValue(sizeProp, endSize, Interpolator.EASE_OUT)
                     )
             );
             anim.setCycleCount(Animation.INDEFINITE);
-            anim.setDelay(Duration.seconds(i * 0.6));
+            anim.setDelay(Duration.seconds(i));
             anim.play();
         }
 
