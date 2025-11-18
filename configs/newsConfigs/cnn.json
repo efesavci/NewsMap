@@ -1,0 +1,14 @@
+{
+  "baseUrl": "https://edition.cnn.com/",
+  "topicSelectors": [
+    "a[href*=/world][class='subnav__section-link'] > ul[class='subnav__subsections'] > li[class='subnav__subsections'] > a[href^='https://edition.cnn.com/world/']",
+    "a[href*=/politics][class='subnav__section-link'] > ul[class='subnav__subsections'] > li[class='subnav__subsections'] > a[href^='https://edition.cnn.com/world/']"
+  ],
+  "articleSelectors": [
+    "a[data-link-type='article'][href]"
+  ],
+  "articleTitle": "h1[data-editable='headlineText']",
+  "articleTime": "time[datetime]",
+  "articleBody": "p[data-editable='text'][data-component-name='paragraph']",
+  "maxDepth": 3
+}

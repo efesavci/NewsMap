@@ -1,0 +1,14 @@
+{
+  "baseUrl":"https://apnews.com",
+  "topicSelectors":[
+    "a[class='AnClick-MainNav'][href]",
+    "a[class='Subheader-Sections-item-item'][href*=/hub]"
+  ],
+  "articleSelectors": [
+    "a[class='Link'][href*=/article]"
+  ],
+  "articleTitle": "h1[class='Page-headline']",
+  "articleTime": "bsp-timestamp[data-timestamp]",
+  "articleBody": "div[class*='RichTextStoryBody'] > p",
+  "maxDepth" : 4
+}

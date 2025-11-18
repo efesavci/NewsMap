@@ -7,6 +7,9 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import java.io.File;
 import java.io.IOException;
 import java.io.Writer;
+import global.Constants.*;
+
+import static global.Constants.ARTICLE_DIR;
 
 public record Article(
         String id,
@@ -17,7 +20,7 @@ public record Article(
         String publishTime,
         String crawledAt)  {
 
-    public static final File OUT_DIR = new File("data/articles");
+    public static final File OUT_DIR = new File(ARTICLE_DIR);
     public static final ObjectMapper MAPPER = new ObjectMapper();
     public static final ObjectWriter PRETTY_WRITER = MAPPER.writerWithDefaultPrettyPrinter();
     public static final ObjectWriter JSONL_WRITER = MAPPER.writer()

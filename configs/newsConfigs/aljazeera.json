@@ -1,0 +1,14 @@
+{
+  "baseUrl":"https://www.aljazeera.com",
+  "topicSelectors":[
+    "a[href='/middle-east']",
+    "ul[class*='menu__submenu'] > li[data-testid='sub-menu-item'] > a[href]"
+  ],
+  "articleSelectors": [
+    "a[class='u-clickable-card__link article-card__link'][href^='/news']"
+  ],
+  "articleTitle": "h1",
+  "articleTime": "div[class='date-simple'] > span[aria-hidden='true']",
+  "articleBody": "div[class='wysiwyg wysiwyg--all-content'] > p",
+  "maxDepth" : 4
+}

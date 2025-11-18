@@ -1,0 +1,15 @@
+{
+  "baseUrl": "https://www.euronews.com",
+  "topicSelectors": [
+    "a[class='c-navigation-bar__link'][href='/my-europe']",
+    "a[class='c-navigation-bar__link'][href='/news']",
+    "a[class='c-navigation-bar__link'][href='/tag/eu-policy']"
+  ],
+  "articleSelectors": [
+    "a[class='the-media-object__link '][href~=^(?!.*video).*$]"
+  ],
+  "articleTitle": "h1[class='c-article-redesign-title']",
+  "articleTime": "div[data-timestamp][class='c-article-publication-date']",
+  "articleBody": "div[class='c-article-content js-article-content'] > p",
+  "maxDepth": 3
+}

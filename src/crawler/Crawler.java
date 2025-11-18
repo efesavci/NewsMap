@@ -1,6 +1,4 @@
 package crawler;
-
-import global.Constants;
 import org.jetbrains.annotations.Nullable;
 import storage.Article;
 import storage.SiteConfig;
@@ -11,15 +9,12 @@ import org.jsoup.nodes.Element;
 
 import java.io.*;
 import java.net.MalformedURLException;
-import java.net.URL;
 import java.time.Instant;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
 import java.util.HashSet;
-import java.util.Locale;
 import java.util.Set;
 import static global.Constants.*;
 import java.net.URI;
+import static crawler.CrawlerUtils.*;
 
 public class Crawler {
     /** One global timestamp for this crawl batch (same across all sites). */
@@ -31,7 +26,7 @@ public class Crawler {
     private int maxArticlesToFetch;
     private int currentArticlesFetched = 0;
 
-    private final Constants.FileFormat outputFormat;
+    private final FileFormat outputFormat;
     private final boolean outputAsBatch;
 
     @Nullable
@@ -40,8 +35,8 @@ public class Crawler {
     @Nullable
     private final Writer batchFileWriter;
 
-    public Crawler(SiteConfig config, int maxArticlesToFetch, FileFormat outputFormat) throws IOException{
-        System.out.println(CRAWLER_PRINT_PREFIX + "Initializing Crawler for " + config.baseUrl());
+    public Crawler(SiteConfig config, int maxArticlesToFetch, FileFormat outputFormat, boolean isConcurrent) throws IOException{
+        info("Initializing Crawler for " + config.baseUrl());
         this.config = config;
         this.maxArticlesToFetch = maxArticlesToFetch;
         this.outputFormat = outputFormat;
@@ -51,14 +46,11 @@ public class Crawler {
         };
         if (outputAsBatch) {
             String extension = FileFormat.getExtensionFromFormat(outputFormat);
-            this.batchFile = new File("data/articles/articles_" +
-                    batchFileTimeStampFormatter.format(CRAWL_RUN_TIMESTAMP) + extension);
-
+            this.batchFile = createBatchFile(config,extension,CRAWL_RUN_TIMESTAMP,isConcurrent);
             if (!batchFile.exists()) {
                 batchFile.getParentFile().mkdirs();
                 batchFile.createNewFile();
             }
-
             this.batchFileWriter = new BufferedWriter(new FileWriter(batchFile, true));
         } else {
             this.batchFile = null;
@@ -66,12 +58,12 @@ public class Crawler {
         }
     }
 
-    public void crawl() throws Exception {
-        System.out.println(CRAWLER_PRINT_PREFIX + "Starting crawl for: " + config.baseUrl());
+    public void crawl() {
+        info("Starting crawl for: " + config.baseUrl());
         try {
             crawl(config.baseUrl(), 0);
         } catch (Exception e) {
-            System.err.println(CRAWLER_PRINT_PREFIX + "Fatal error during crawl: " + e.getMessage());
+            error("Fatal error during crawl: " + e.getMessage());
             e.printStackTrace();
         } finally {
             close();
@@ -81,13 +73,13 @@ public class Crawler {
     /** Main recursive crawler entry point */
     public void crawl(String url, int depth) throws Exception {
         if (depth > config.maxDepth()) {
-            System.out.println(CRAWLER_PRINT_PREFIX + "Max depth reached @ " + url);
+            info("Max depth reached @ " + url);
             return;
         }
         if (isMaxArticlesReached()) return;
         if (visited.contains(url)) return;
         if (!isAllowed(url)) {
-            System.out.println(CRAWLER_PRINT_PREFIX + "Skipping disallowed URL: " + url);
+            warn("Skipping disallowed URL: " + url);
             return;
         }
 
@@ -100,7 +92,7 @@ public class Crawler {
                     .userAgent(USER_AGENT)
                     .get();
         } catch (IOException e) {
-            System.err.println(CRAWLER_PRINT_PREFIX + "Failed to fetch page: " + url + " (" + e.getMessage() + ")");
+            error("Failed to fetch page: " + url + " (" + e.getMessage() + ")");
             return;
         }
 
@@ -118,6 +110,7 @@ public class Crawler {
             for (Element link : doc.select(sel)) {
 
                 String articleUrl = link.absUrl("href");
+
                 if (articleUrl.isEmpty() || visited.contains(articleUrl)) continue;
                 if (!isAllowed(articleUrl)) continue;
 
@@ -136,13 +129,13 @@ public class Crawler {
                         // case PARQUET -> article.appendToParquetBatch();
                     }
 
-                    System.out.println(CRAWLER_PRINT_PREFIX + "Saved article: " + articleUrl);
+                    info("Saved article: " + articleUrl);
                     currentArticlesFetched++;
 
                 } catch (IOException e) {
-                    System.err.println(CRAWLER_PRINT_PREFIX + "I/O error @ " + articleUrl + ": " + e.getMessage());
+                    error("I/O error @ " + articleUrl + ": " + e.getMessage());
                 } catch (Exception e) {
-                    System.err.println(CRAWLER_PRINT_PREFIX + "Unexpected error parsing article: " + articleUrl);
+                    error("Unexpected error parsing article: " + articleUrl);
                     e.printStackTrace();
                 }
 
@@ -156,16 +149,16 @@ public class Crawler {
     // Follow Topic / Category Links
     //===========================================
     private void followTopics(Document doc, int depth) {
+
         for (String sel : config.topicSelectors()) {
             for (Element link : doc.select(sel)) {
-
                 String topicUrl = link.absUrl("href");
                 if (topicUrl.isEmpty() || visited.contains(topicUrl)) continue;
 
                 try {
                     crawl(topicUrl, depth + 1);
                 } catch (Exception e) {
-                    System.err.println(CRAWLER_PRINT_PREFIX + "Error crawling topic: " + topicUrl);
+                    error("Error crawling topic: " + topicUrl);
                     e.printStackTrace();
                 }
 
@@ -179,7 +172,7 @@ public class Crawler {
     //===========================================
     private boolean isMaxArticlesReached() {
         if (currentArticlesFetched >= maxArticlesToFetch) {
-            System.out.printf("%sMax articles reached: %d%n", CRAWLER_PRINT_PREFIX, currentArticlesFetched);
+            info("Max articles reached:" + currentArticlesFetched);
             return true;
         }
         return false;
@@ -191,12 +184,12 @@ public class Crawler {
     private boolean isAllowed(String url) {
         try {
             if (config.rules() == null) {
-                System.err.println(CRAWLER_PRINT_PREFIX+"No robots rules loaded for: " + config.baseUrl());
+                error("No robots rules loaded for: " + config.baseUrl());
                 return false;
             }
             return config.rules().isAllowed(url);
         } catch (Exception e) {
-            System.err.println(CRAWLER_PRINT_PREFIX+"Robots check failed for " + url + " (" + e.getMessage() + ")");
+            error("Robots check failed for " + url + " (" + e.getMessage() + ")");
             return false; // safest default
         }
     }
@@ -209,25 +202,24 @@ public class Crawler {
         }
     }
 
-
     /** Parses an article Document into an Article record */
     private Article parse(Document doc, String url) throws MalformedURLException {
         String title = doc.select(config.articleTitle()).text();
-        String timeRaw = doc.select(config.articleTime()).attr("datetime");
+
+        // --- Timestamp extraction ---
+        Element timeEl = doc.select(config.articleTime()).first();
+        String time = extractTimeAttribute(timeEl);  // use helper below
+        Instant publishedAt = parseSmartTimestamp(time);
+
+        // --- Parse article body ---
         String body = doc.select(config.articleBody()).text();
 
-
+        // --- ID + host extraction ---
         String id = DigestUtils.sha256Hex(url);
         String host = URI.create(config.baseUrl()).toURL().getHost();
-        if(host == null) host = "unknown";
+        if (host == null) host = "unknown";
 
-        Instant publishedAt;
-        try {
-            publishedAt = Instant.parse(timeRaw);
-        } catch (Exception e) {
-            publishedAt = Instant.now();
-        }
-        // current UTC timestamp
+        // --- Timestamp parsing ---
         return new Article(
                 id,
                 url,
@@ -238,6 +230,13 @@ public class Crawler {
                 timeStampFormatter.format(Instant.now())
         );
     }
+
+
+
+
+
+
+
 
 
 }
