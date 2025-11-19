@@ -1,4 +1,6 @@
 fastapi
 uvicorn
 sentence-transformers
-torch
+
+numpy~=2.3.5
+transformers~=4.57.1

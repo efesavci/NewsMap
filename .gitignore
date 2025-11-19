@@ -62,4 +62,5 @@ Thumbs.db
 # Keep your resources (textures, GeoJSON, etc.)
 # Comment out the line above if you want to keep *.jpg or *.geojson in git.
 
-/data/articles
+/data
+/.venv
