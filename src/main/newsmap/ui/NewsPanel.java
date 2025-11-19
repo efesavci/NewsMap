@@ -6,6 +6,7 @@ import javafx.scene.control.Hyperlink;
 import javafx.scene.control.Label;
 import javafx.scene.layout.VBox;
 import javafx.util.Duration;
+import main.newsmap.hotspot.Hotspot;
 import main.newsmap.model.Article;
 
 import java.util.List;
@@ -23,16 +24,16 @@ public class NewsPanel extends VBox {
         setPrefWidth(300); setMinWidth(300); setMaxWidth(300);
     }
 
-    public void show(List<Article> arts, Runnable onClose) {
+    public void show(Hotspot hs, Runnable onClose) {
         getChildren().clear();
 
-        Label header = new Label("Breaking near ...");
+        Label header = new Label("Breaking near "+ hs.location());
         header.setStyle("-fx-text-fill: #f8fafc; -fx-font-size: 16px; -fx-font-weight: bold;");
         getChildren().add(header);
 
-        int limit = Math.min(5, arts.size());
+        int limit = Math.min(5, hs.articles().size());
         for (int i = 0; i < limit; i++) {
-            var a = arts.get(i);
+            var a = hs.articles().get(i);
             VBox card = new VBox();
             card.setStyle("""
         -fx-background-color: rgba(30,41,59,0.6);

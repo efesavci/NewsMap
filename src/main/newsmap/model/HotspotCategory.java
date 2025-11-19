@@ -4,7 +4,9 @@ public enum HotspotCategory {
     POLITICS("Politics"),
     BUSINESS("Business"),
     TECHNOLOGY("Technology"),
-    HEALTH("Health");
+    HEALTH("Health"),
+    WAR("War");
+
 
     private final String displayName;
 

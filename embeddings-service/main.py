@@ -36,7 +36,7 @@ def load_articles(base_path="../data/articles"):
 # -----------------------------------------------------
 # Embed using Jina v3
 # -----------------------------------------------------
-def embed_articles(texts, batch_size=8):
+def embed_articles(texts, batch_size=4):
     print("[MODEL] Loading jinaai/jina-embeddings-v3")
 
     tokenizer = AutoTokenizer.from_pretrained(
@@ -67,7 +67,7 @@ def embed_articles(texts, batch_size=8):
             return_tensors="pt",
             truncation=True,
             padding=True,
-            max_length=8192
+            max_length=4096
         ).to(device)
 
         with torch.no_grad():
@@ -123,7 +123,7 @@ def main():
     texts = [a["body"] for a in articles]  # already cleaned
     print(f"[INFO] Loaded {len(texts)} articles")
 
-    embeddings = embed_articles(texts, batch_size=8)
+    embeddings = embed_articles(texts, batch_size=1)
     print(f"[INFO] Embeddings shape: {embeddings.shape}")
 
     save_to_h5(articles, embeddings)

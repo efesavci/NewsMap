@@ -27,6 +27,7 @@ import main.newsmap.model.HotspotCategory;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 
 public class HotspotManager {
@@ -43,7 +44,7 @@ public class HotspotManager {
     }
 
 
-    public Hotspot spawnHotspot(double latDeg, double lonDeg, List<Article> articles, HotspotCategory category) {
+    public Hotspot spawnHotspot(double latDeg, double lonDeg, List<Article> articles, HotspotCategory category, String location) {
 
 
         Point3D center = CoordinateUtils.latLonToPoint(latDeg, lonDeg, globe.getEarthRadius() + 2.5);
@@ -120,8 +121,8 @@ public class HotspotManager {
             anim.play();
         }
 
-
-        Hotspot hs = new Hotspot(latDeg, lonDeg, articles, category, waveGroup);
+            //will get location from cluster + category
+        Hotspot hs = new Hotspot(latDeg, lonDeg, articles, category, waveGroup, location);
         waveGroup.addEventHandler(MouseEvent.MOUSE_CLICKED, e -> {
             if (e.isStillSincePress()) onHotspotClicked(hs);
             e.consume();
@@ -146,18 +147,23 @@ public class HotspotManager {
     }
 
 
-    public void applyCategoryFilter(HotspotCategory category) {
-        boolean showAll = category == null;
-        newsPanel.hide();
-        for (Hotspot hotspot : hotspots) {
-            boolean visible = showAll || hotspot.category() == category;
-            hotspot.node().setVisible(visible);
+    public void applyCategoryFilters(Set<HotspotCategory> categories) {
+        boolean showAll = categories.isEmpty();
+
+        for (Hotspot hotspot : hotspots) {   // your internal hotspot list
+            if (showAll) {
+                hotspot.setVisible(true);
+                continue;
+            }
+
+            boolean matches = categories.contains(hotspot.getCategory());
+            hotspot.setVisible(matches);
         }
     }
 
 
     private void onHotspotClicked(Hotspot hs) {
-        newsPanel.show(hs.articles(), null);
+        newsPanel.show(hs, null);
     }
 
 

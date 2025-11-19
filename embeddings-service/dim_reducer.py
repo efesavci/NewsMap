@@ -3,10 +3,7 @@ import numpy as np
 import umap
 import matplotlib.pyplot as plt
 from tqdm import tqdm
-import plotly.express as px
 import plotly.graph_objects as go
-
-
 
 H5_PATH = "embeddings/articles.h5"
 

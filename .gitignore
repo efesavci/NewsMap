@@ -64,3 +64,4 @@ Thumbs.db
 
 /data
 /embeddings-service/.venv1
+/embeddings-service/embeddings/*

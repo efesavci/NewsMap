@@ -53,7 +53,6 @@ public class GlobePane extends StackPane {
 
         sub = globe.createSubScene(1200, 800);
 
-
         var features = GeoJsonLoader.loadFromClasspath("/world.json");
         var borders = BorderMeshFactory.buildFromFeatures(features, globe.getEarthRadius());
         borders.setMouseTransparent(true);
@@ -76,12 +75,11 @@ public class GlobePane extends StackPane {
 
         FilterBar filterBar = new FilterBar(hotspotManager);
         StackPane.setAlignment(filterBar, Pos.TOP_LEFT);
-        StackPane.setMargin(filterBar, new Insets(16));
+        StackPane.setMargin(filterBar, new Insets(20));
 
 
         this.getChildren().addAll(sub, newsPanel, overlay, filterBar);
         overlay.toFront();
-        filterBar.toFront();
 
 
         GlobeControls controls = new GlobeControls(
@@ -103,10 +101,10 @@ public class GlobePane extends StackPane {
                 "ABC-NEWS",
                 "https://abcnews.go.com/Politics/trump-terminating-trade-talks-canada-tv-ad-tariffs/story?id=126821528",
                 System.currentTimeMillis()));
-        hotspotManager.spawnHotspot(52.5200, 13.4050, list, HotspotCategory.POLITICS);
-        hotspotManager.spawnHotspot(40.7128, -74.0060, list, HotspotCategory.BUSINESS);
-        hotspotManager.spawnHotspot(41.0082, 28.9784, list, HotspotCategory.TECHNOLOGY);
-        hotspotManager.spawnHotspot(51.509865, -0.118092, list, HotspotCategory.HEALTH);
+        hotspotManager.spawnHotspot(52.5200, 13.4050, list, HotspotCategory.POLITICS, "Berlin, Germany");
+        hotspotManager.spawnHotspot(40.7128, -74.0060, list, HotspotCategory.BUSINESS, "New York, USA");
+        hotspotManager.spawnHotspot(41.0082, 28.9784, list, HotspotCategory.TECHNOLOGY, "Istanbul, Turkey");
+        hotspotManager.spawnHotspot(51.509865, -0.118092, list, HotspotCategory.HEALTH, "London, UK");
     }
 
     public void bindSubSceneTo(javafx.scene.Scene scene) {

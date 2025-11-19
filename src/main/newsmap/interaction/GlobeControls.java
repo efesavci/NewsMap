@@ -28,7 +28,11 @@ public class GlobeControls {
     private final Rotate rotateX = new Rotate(0, Rotate.X_AXIS);
     private final Rotate rotateY = new Rotate(0, Rotate.Y_AXIS);
     private double anchorX, anchorY;
+    private long lastUpdate = 0;
+    private static final long UPDATE_INTERVAL_NS = 16_000_000;
     private double anchorAngleX, anchorAngleY;
+
+    private static final double MOVE_THRESHOLD = 4;
 
 
     public GlobeControls(SubScene sub,
@@ -77,6 +81,13 @@ public class GlobeControls {
     }
     private void enableHover() {
         sub.setOnMouseMoved(e -> {
+            long now = System.nanoTime();
+            if (now - lastUpdate < UPDATE_INTERVAL_NS) {
+                updateLabelPositionOnly(e);
+                return;
+            }
+            lastUpdate = now;
+
             PickResult pick = e.getPickResult();
 
             // No intersection: hide label
@@ -114,6 +125,11 @@ public class GlobeControls {
             }
         });
 
+    }
+    private void updateLabelPositionOnly(javafx.scene.input.MouseEvent e) {
+        if (!countryLabel.isVisible()) return;
+        Point2D pos = overlay.screenToLocal(e.getScreenX(), e.getScreenY());
+        countryLabel.relocate(pos.getX() + 10, pos.getY() - 10);
     }
 
 

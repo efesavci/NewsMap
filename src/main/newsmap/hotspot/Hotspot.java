@@ -10,7 +10,15 @@ public record Hotspot(double latDeg,
                       double lonDeg,
                       List<Article> articles,
                       HotspotCategory category,
-                      Group node) {
+                      Group node, String location) {
+    public HotspotCategory getCategory() {
+        return category;
+    }
+
+    public void setVisible(boolean value) {
+        node.setVisible(value);
+    }
+
 
 }
 
