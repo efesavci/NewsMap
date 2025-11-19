@@ -23,6 +23,7 @@ import main.newsmap.model.Article;
 import main.newsmap.scene.Globe3DFactory;
 import main.newsmap.ui.NewsPanel;
 import main.newsmap.util.CoordinateUtils;
+import main.newsmap.model.HotspotCategory;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -42,7 +43,7 @@ public class HotspotManager {
     }
 
 
-    public Hotspot spawnHotspot(double latDeg, double lonDeg, List<Article> articles) {
+    public Hotspot spawnHotspot(double latDeg, double lonDeg, List<Article> articles, HotspotCategory category) {
 
 
         Point3D center = CoordinateUtils.latLonToPoint(latDeg, lonDeg, globe.getEarthRadius() + 2.5);
@@ -120,7 +121,7 @@ public class HotspotManager {
         }
 
 
-        Hotspot hs = new Hotspot(latDeg, lonDeg, articles, waveGroup);
+        Hotspot hs = new Hotspot(latDeg, lonDeg, articles, category, waveGroup);
         waveGroup.addEventHandler(MouseEvent.MOUSE_CLICKED, e -> {
             if (e.isStillSincePress()) onHotspotClicked(hs);
             e.consume();
@@ -142,6 +143,16 @@ public class HotspotManager {
     public void remove(Hotspot h) {
         globe.getGlobeGroup().getChildren().remove(h.node());
         hotspots.remove(h);
+    }
+
+
+    public void applyCategoryFilter(HotspotCategory category) {
+        boolean showAll = category == null;
+        newsPanel.hide();
+        for (Hotspot hotspot : hotspots) {
+            boolean visible = showAll || hotspot.category() == category;
+            hotspot.node().setVisible(visible);
+        }
     }
 
 
