@@ -36,7 +36,7 @@ public class Crawler {
     private final Writer batchFileWriter;
 
     public Crawler(SiteConfig config, int maxArticlesToFetch, FileFormat outputFormat, boolean isConcurrent) throws IOException{
-        info("Initializing Crawler for " + config.baseUrl());
+        crawler_info("Initializing Crawler for " + config.baseUrl());
         this.config = config;
         this.maxArticlesToFetch = maxArticlesToFetch;
         this.outputFormat = outputFormat;
@@ -59,11 +59,11 @@ public class Crawler {
     }
 
     public void crawl() {
-        info("Starting crawl for: " + config.baseUrl());
+        crawler_info("Starting crawl for: " + config.baseUrl());
         try {
             crawl(config.baseUrl(), 0);
         } catch (Exception e) {
-            error("Fatal error during crawl: " + e.getMessage());
+            crawler_error("Fatal crawler_error during crawl: " + e.getMessage());
             e.printStackTrace();
         } finally {
             close();
@@ -73,13 +73,13 @@ public class Crawler {
     /** Main recursive crawler entry point */
     public void crawl(String url, int depth) throws Exception {
         if (depth > config.maxDepth()) {
-            info("Max depth reached @ " + url);
+            crawler_info("Max depth reached @ " + url);
             return;
         }
         if (isMaxArticlesReached()) return;
         if (visited.contains(url)) return;
         if (!isAllowed(url)) {
-            warn("Skipping disallowed URL: " + url);
+            crawler_warn("Skipping disallowed URL: " + url);
             return;
         }
 
@@ -92,7 +92,7 @@ public class Crawler {
                     .userAgent(USER_AGENT)
                     .get();
         } catch (IOException e) {
-            error("Failed to fetch page: " + url + " (" + e.getMessage() + ")");
+            crawler_error("Failed to fetch page: " + url + " (" + e.getMessage() + ")");
             return;
         }
 
@@ -129,13 +129,13 @@ public class Crawler {
                         // case PARQUET -> article.appendToParquetBatch();
                     }
 
-                    info("Saved article: " + articleUrl);
+                    crawler_info("Saved article: " + articleUrl);
                     currentArticlesFetched++;
 
                 } catch (IOException e) {
-                    error("I/O error @ " + articleUrl + ": " + e.getMessage());
+                    crawler_error("I/O crawler_error @ " + articleUrl + ": " + e.getMessage());
                 } catch (Exception e) {
-                    error("Unexpected error parsing article: " + articleUrl);
+                    crawler_error("Unexpected crawler_error parsing article: " + articleUrl);
                     e.printStackTrace();
                 }
 
@@ -158,7 +158,7 @@ public class Crawler {
                 try {
                     crawl(topicUrl, depth + 1);
                 } catch (Exception e) {
-                    error("Error crawling topic: " + topicUrl);
+                    crawler_error("Error crawling topic: " + topicUrl);
                     e.printStackTrace();
                 }
 
@@ -172,7 +172,7 @@ public class Crawler {
     //===========================================
     private boolean isMaxArticlesReached() {
         if (currentArticlesFetched >= maxArticlesToFetch) {
-            info("Max articles reached:" + currentArticlesFetched);
+            crawler_info("Max articles reached:" + currentArticlesFetched);
             return true;
         }
         return false;
@@ -184,12 +184,12 @@ public class Crawler {
     private boolean isAllowed(String url) {
         try {
             if (config.rules() == null) {
-                error("No robots rules loaded for: " + config.baseUrl());
+                crawler_error("No robots rules loaded for: " + config.baseUrl());
                 return false;
             }
             return config.rules().isAllowed(url);
         } catch (Exception e) {
-            error("Robots check failed for " + url + " (" + e.getMessage() + ")");
+            crawler_error("Robots check failed for " + url + " (" + e.getMessage() + ")");
             return false; // safest default
         }
     }
@@ -229,6 +229,11 @@ public class Crawler {
                 timeStampFormatter.format(publishedAt),
                 timeStampFormatter.format(Instant.now())
         );
+    }
+
+
+    public SiteConfig getSiteConfig() {
+        return config;
     }
 
 

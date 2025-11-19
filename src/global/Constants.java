@@ -19,7 +19,7 @@ public final class Constants {
 
     public static final String SITE_CONFIG_PREFIX = "[SITE_CONFIG]";
 
-    public static final String ARTICLE_DIR = "data/articles";
+    public static final String ARTICLE_DIR = "data/articles/";
 
     // enum for predefined and supported file formats
 
