@@ -1,4 +1,4 @@
-package newsmap.ui;
+package main.newsmap.ui;
 
 import javafx.scene.control.Label;
 import javafx.scene.layout.Pane;

@@ -1,4 +1,4 @@
-package newsmap.gfx;
+package main.newsmap.gfx;
 
 import javafx.scene.image.Image;
 import javafx.scene.image.PixelWriter;

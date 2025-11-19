@@ -1,4 +1,4 @@
-package newsmap.geo;
+package main.newsmap.geo;
 
 import org.json.JSONObject;
 import org.json.JSONArray;

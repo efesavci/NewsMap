@@ -1,4 +1,4 @@
-package newsmap.geo;
+package main.newsmap.geo;
 
 import javafx.scene.shape.MeshView;
 import javafx.scene.shape.TriangleMesh;
@@ -14,7 +14,7 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.List;
 
-import newsmap.util.CoordinateUtils;
+import main.newsmap.util.CoordinateUtils;
 
 public class BorderMeshFactory {
 

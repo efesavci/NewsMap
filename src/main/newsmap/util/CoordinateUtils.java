@@ -1,4 +1,4 @@
-package newsmap.util;
+package main.newsmap.util;
 
 import javafx.geometry.Point3D;
 

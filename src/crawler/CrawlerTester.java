@@ -11,7 +11,7 @@ import java.util.concurrent.TimeUnit;
 public class CrawlerTester {
     public static void main(String[] args) throws Exception {
 
-        CrawlerBuilder builder = new CrawlerBuilder(200,true);
+        CrawlerBuilder builder = new CrawlerBuilder(10,true);
         builder.startCrawl();
     }
 

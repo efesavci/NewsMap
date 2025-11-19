@@ -5,47 +5,31 @@ import storage.SiteConfig;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
-import static crawler.CrawlerTester.info;
 import static crawler.CrawlerUtils.*;
+import static crawler.CrawlerTester.info;
 import static global.Constants.*;
 
 public class CrawlerBuilder {
 
-    private int maxArticleCountForEach;
+    private final int maxArticleCountForEach;
+    private final boolean runConcurrently;
+    private final List<SiteConfig> configList;
+    private final List<Crawler> crawlerList = new ArrayList<>();
 
-    private int numThreads;
-
-    private List<SiteConfig> configList;
-
-    private ExecutorService threadPool;
-
-    private boolean runConcurrently;
-
-    private List<Crawler> crawlerList = new ArrayList<>();
-
-    public CrawlerBuilder(int maxArticleCountForEach, boolean runConcurrently, String configFile,FileFormat format){
+    public CrawlerBuilder(int maxArticleCountForEach, boolean runConcurrently, String configFile, FileFormat format) {
 
         List<SiteConfig> listOfSiteConfigs = SiteConfig.generateConfigsWithRobots(configFile);
         if (listOfSiteConfigs.isEmpty()) {
-            throw new IllegalArgumentException("[CRAWLER BUILDER]No configs found.");
+            throw new IllegalArgumentException("[CRAWLER BUILDER] No configs found.");
         }
-        this.configList = listOfSiteConfigs;
 
-        if(runConcurrently) {
-            numThreads = Runtime.getRuntime().availableProcessors();
-            threadPool = Executors.newFixedThreadPool(numThreads);
-        }
-        else {
-            numThreads = 1;
-            threadPool = null;
-        }
+        this.configList = listOfSiteConfigs;
+        this.runConcurrently = runConcurrently;
         this.maxArticleCountForEach = maxArticleCountForEach;
 
-        for(SiteConfig cfg : configList) {
+        for (SiteConfig cfg : configList) {
             builder_print("Setting Up Crawler for " + cfg.baseUrl());
             try {
                 Crawler crawler = new Crawler(cfg, this.maxArticleCountForEach, format, this.runConcurrently);
@@ -56,59 +40,82 @@ public class CrawlerBuilder {
         }
     }
 
-    public void startCrawl(){
-        if(this.runConcurrently) {
+    public CrawlerBuilder(int maxArticleCountForEach, boolean runConcurrently) {
+        this(maxArticleCountForEach, runConcurrently, null, FileFormat.JSONL);
+    }
+
+    public CrawlerBuilder(int maxArticleCountForEach) {
+        this(maxArticleCountForEach, true, null, FileFormat.JSONL);
+    }
+
+    public void startCrawl() {
+        if (this.runConcurrently) {
             concurrentCrawl();
-            return;
+        } else {
+            sequentialCrawl();
         }
-        sequentialCrawl();
     }
 
     private void sequentialCrawl() {
-        for(Crawler crawler : crawlerList) {
+        for (Crawler crawler : crawlerList) {
             builder_print("Launching Crawler for: " + crawler.getSiteConfig().baseUrl());
             crawler.crawl();
         }
     }
 
     private void concurrentCrawl() {
-        try {
-            for (Crawler crawler : crawlerList) {
-                threadPool.submit(() -> {
-                    builder_print("Launching Crawler for: " + crawler.getSiteConfig().baseUrl()
-                            + "(Thread %d)".formatted(Thread.currentThread().threadId()));
+        int numCrawlers = crawlerList.size();
+
+        builder_print("Starting concurrent crawling with " + numCrawlers + " threads.");
+
+        ExecutorService pool = Executors.newFixedThreadPool(numCrawlers, r -> {
+            Thread t = new Thread(r);
+            t.setName("CrawlerThread-" + t.getId());
+            return t;
+        });
+
+        List<Callable<Void>> tasks = new ArrayList<>();
+
+        for (Crawler crawler : crawlerList) {
+            tasks.add(() -> {
+                String name = crawler.getSiteConfig().baseUrl();
+                builder_print("Starting: " + name + " on " + Thread.currentThread().getName());
+                try {
                     crawler.crawl();
-                });
-            }
-            threadPool.shutdown();
-            threadPool.awaitTermination(1, TimeUnit.HOURS);
-        } catch (Exception e) {
-            throw new IllegalStateException("Concurrent crawling failed", e);
+                    builder_print("Finished: " + name);
+                } catch (Exception e) {
+                    builder_print("FAILED: " + name + " — " + e.getMessage());
+                    throw e;
+                }
+                return null;
+            });
         }
-    }
+
+        try {
+            // invokeAll returns when ALL tasks finish or timeout hits
+            List<Future<Void>> futures = pool.invokeAll(tasks, 5, TimeUnit.MINUTES);
 
 
-    public CrawlerBuilder(int maxArticleCountForEach, boolean runConcurrently) {
-        this(maxArticleCountForEach, runConcurrently, null,FileFormat.JSONL);
-    }
+            for (Future<Void> f : futures) {
+                try {
+                    f.get();
+                } catch (ExecutionException ee) {
+                    throw new IllegalStateException("A crawler failed", ee.getCause());
+                }
+            }
 
-    public CrawlerBuilder(int maxArticleCountForEach) {
-        this(maxArticleCountForEach, true);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Crawling interrupted", e);
+        } finally {
+            pool.shutdown();
+        }
+
+        builder_print(">>> All crawlers finished successfully.");
     }
 
     public static void builder_print(String msg) {
-        System.out.println("[CRAWLER BUILDER]" + msg);
+        System.out.println("[CRAWLER BUILDER] " + msg);
     }
 
-    public int getNumThreads() {
-        return numThreads;
-    }
-
-    public int getMaxArticleCountForEach() {
-        return maxArticleCountForEach;
-    }
-
-    public boolean isRunConcurrently() {
-        return runConcurrently;
-    }
 }

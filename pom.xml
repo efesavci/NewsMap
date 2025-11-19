@@ -155,9 +155,15 @@
                 <version>0.0.8</version>
 
                 <configuration>
-                    <mainClass>newsmap.App</mainClass>
+                    <mainClass>main.newsmap.App</mainClass>
                 </configuration>
             </plugin>
         </plugins>
+        <sourceDirectory>src</sourceDirectory>
+        <resources>
+            <resource>
+                <directory>resources</directory>
+            </resource>
+        </resources>
     </build>
 </project>

@@ -1,4 +1,4 @@
-package newsmap.hotspot;
+package main.newsmap.hotspot;
 
 import javafx.animation.Animation;
 import javafx.animation.Interpolator;
@@ -18,11 +18,11 @@ import javafx.scene.shape.CullFace;
 import javafx.scene.shape.MeshView;
 import javafx.scene.shape.TriangleMesh;
 import javafx.util.Duration;
-import newsmap.gfx.TextureFactory;
-import newsmap.model.Article;
-import newsmap.scene.Globe3DFactory;
-import newsmap.ui.NewsPanel;
-import newsmap.util.CoordinateUtils;
+import main.newsmap.gfx.TextureFactory;
+import main.newsmap.model.Article;
+import main.newsmap.scene.Globe3DFactory;
+import main.newsmap.ui.NewsPanel;
+import main.newsmap.util.CoordinateUtils;
 
 import java.util.ArrayList;
 import java.util.List;

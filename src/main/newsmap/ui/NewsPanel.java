@@ -1,4 +1,4 @@
-package newsmap.ui;
+package main.newsmap.ui;
 
 import javafx.animation.*;
 import javafx.scene.control.Button;
@@ -6,7 +6,7 @@ import javafx.scene.control.Hyperlink;
 import javafx.scene.control.Label;
 import javafx.scene.layout.VBox;
 import javafx.util.Duration;
-import newsmap.model.Article;
+import main.newsmap.model.Article;
 
 import java.util.List;
 

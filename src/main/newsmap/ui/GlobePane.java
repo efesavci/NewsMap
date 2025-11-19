@@ -1,7 +1,6 @@
-package newsmap.ui;
+package main.newsmap.ui;
 
 import javafx.geometry.Pos;
-import javafx.scene.DepthTest;
 import javafx.scene.SubScene;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
@@ -9,18 +8,18 @@ import javafx.scene.paint.PhongMaterial;
 import javafx.scene.shape.CullFace;
 import javafx.scene.shape.DrawMode;
 import javafx.scene.shape.Sphere;
-import newsmap.scene.Globe3DFactory;
-import newsmap.geo.BorderMeshFactory;
-import newsmap.geo.GeoJsonLoader;
-import newsmap.geo.CountryFinder;
-import newsmap.interaction.GlobeControls;
-import newsmap.hotspot.HotspotManager;
-import newsmap.gfx.TextureFactory;
-import newsmap.model.Article;
+import main.newsmap.scene.Globe3DFactory;
+import main.newsmap.geo.BorderMeshFactory;
+import main.newsmap.geo.GeoJsonLoader;
+import main.newsmap.geo.CountryFinder;
+import main.newsmap.interaction.GlobeControls;
+import main.newsmap.hotspot.HotspotManager;
+import main.newsmap.gfx.TextureFactory;
+import main.newsmap.model.Article;
 
 import java.util.List;
 
-import static newsmap.scene.Globe3DFactory.EARTH_RADIUS;
+import static main.newsmap.scene.Globe3DFactory.EARTH_RADIUS;
 
 public class GlobePane extends StackPane {
     private final OverlayPane overlay;

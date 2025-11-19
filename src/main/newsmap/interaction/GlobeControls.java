@@ -1,6 +1,5 @@
-package newsmap.interaction;
+package main.newsmap.interaction;
 
-import javafx.event.EventHandler;
 import javafx.geometry.Point2D;
 import javafx.geometry.Point3D;
 import javafx.scene.Group;
@@ -8,18 +7,15 @@ import javafx.scene.Node;
 import javafx.scene.PerspectiveCamera;
 import javafx.scene.SubScene;
 import javafx.scene.input.MouseButton;
-import javafx.scene.input.MouseEvent;
 import javafx.scene.input.PickResult;
 import javafx.scene.input.ScrollEvent;
 import javafx.scene.transform.Rotate;
-import newsmap.scene.Globe3DFactory;
-import newsmap.ui.OverlayPane;
-import newsmap.geo.CountryFinder;
-import newsmap.util.CoordinateUtils;
+import main.newsmap.ui.OverlayPane;
+import main.newsmap.geo.CountryFinder;
 
-import static newsmap.ui.OverlayPane.countryLabel;
-import static newsmap.util.CoordinateUtils.clamp;
-import static newsmap.util.CoordinateUtils.pointToLatLon;
+import static main.newsmap.ui.OverlayPane.countryLabel;
+import static main.newsmap.util.CoordinateUtils.clamp;
+import static main.newsmap.util.CoordinateUtils.pointToLatLon;
 
 public class GlobeControls {
     private final SubScene sub;

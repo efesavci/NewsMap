@@ -1,4 +1,4 @@
-package newsmap.scene;
+package main.newsmap.scene;
 
 import javafx.scene.*;
 import javafx.scene.paint.Color;

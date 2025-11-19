@@ -1,4 +1,4 @@
-package newsmap.geo;
+package main.newsmap.geo;
 
 import javafx.geometry.Point3D;
 import javafx.scene.shape.TriangleMesh;
