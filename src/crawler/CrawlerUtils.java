@@ -12,7 +12,6 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Locale;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static global.Constants.*;
@@ -146,15 +145,15 @@ public class CrawlerUtils {
     }
 
 
-    public static void info(String msg) {
+    public static void crawler_info(String msg) {
         System.out.println(CRAWLER_PRINT_PREFIX + msg);
     }
 
-    public static void warn(String msg) {
+    public static void crawler_warn(String msg) {
         System.out.println(CRAWLER_PRINT_PREFIX+"[WARN]" + msg);
     }
 
-    public static void error(String msg) {
+    public static void crawler_error(String msg) {
         System.err.println(CRAWLER_PRINT_PREFIX+"[ERROR]" + msg);
     }
 

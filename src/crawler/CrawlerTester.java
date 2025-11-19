@@ -8,7 +8,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-public class CrawlingMain {
+public class CrawlerTester {
     public static void main(String[] args) throws Exception {
 
         int maxFetch = 25;
