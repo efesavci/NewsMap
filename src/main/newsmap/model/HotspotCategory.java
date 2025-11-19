@@ -1,0 +1,18 @@
+package main.newsmap.model;
+
+public enum HotspotCategory {
+    POLITICS("Politics"),
+    BUSINESS("Business"),
+    TECHNOLOGY("Technology"),
+    HEALTH("Health");
+
+    private final String displayName;
+
+    HotspotCategory(String displayName) {
+        this.displayName = displayName;
+    }
+
+    public String displayName() {
+        return displayName;
+    }
+}

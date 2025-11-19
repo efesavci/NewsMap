@@ -1,5 +1,6 @@
 package main.newsmap.ui;
 
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.SubScene;
 import javafx.scene.layout.StackPane;
@@ -16,6 +17,7 @@ import main.newsmap.interaction.GlobeControls;
 import main.newsmap.hotspot.HotspotManager;
 import main.newsmap.gfx.TextureFactory;
 import main.newsmap.model.Article;
+import main.newsmap.model.HotspotCategory;
 
 import java.util.List;
 
@@ -72,9 +74,14 @@ public class GlobePane extends StackPane {
 
         hotspotManager = new HotspotManager(globe, newsPanel, new TextureFactory());
 
+        FilterBar filterBar = new FilterBar(hotspotManager);
+        StackPane.setAlignment(filterBar, Pos.TOP_LEFT);
+        StackPane.setMargin(filterBar, new Insets(16));
 
-        this.getChildren().addAll(sub, newsPanel, overlay);
+
+        this.getChildren().addAll(sub, newsPanel, overlay, filterBar);
         overlay.toFront();
+        filterBar.toFront();
 
 
         GlobeControls controls = new GlobeControls(
@@ -96,10 +103,10 @@ public class GlobePane extends StackPane {
                 "ABC-NEWS",
                 "https://abcnews.go.com/Politics/trump-terminating-trade-talks-canada-tv-ad-tariffs/story?id=126821528",
                 System.currentTimeMillis()));
-        hotspotManager.spawnHotspot(52.5200, 13.4050, list);
-        hotspotManager.spawnHotspot(40.7128, -74.0060, list);
-        hotspotManager.spawnHotspot(41.0082, 28.9784, list);
-        hotspotManager.spawnHotspot(51.509865, -0.118092, list);
+        hotspotManager.spawnHotspot(52.5200, 13.4050, list, HotspotCategory.POLITICS);
+        hotspotManager.spawnHotspot(40.7128, -74.0060, list, HotspotCategory.BUSINESS);
+        hotspotManager.spawnHotspot(41.0082, 28.9784, list, HotspotCategory.TECHNOLOGY);
+        hotspotManager.spawnHotspot(51.509865, -0.118092, list, HotspotCategory.HEALTH);
     }
 
     public void bindSubSceneTo(javafx.scene.Scene scene) {
