@@ -14,24 +14,22 @@ NewsMap is a full-stack application that visualizes real-time news headlines on 
 
 ## 🛠️ Tech Stack
 
-* **Backend**: Java (Spring Boot)
+* **Backend**: Java
 * **AI/ML Service**: Python (Embeddings, Text Mining)
 * **Build Tool**: Maven
-* **Frontend**: HTML/JavaScript (Interactive Map)
-* **Data**: External News APIs
+* **Frontend**: JavaFx (Interactive Map)
+* **Data**: General-purpose website crawler written in Java
 
 ## 📂 Project Structure
 
-The repository is organized into two main components:
-
-* **`src/`**: The main Java Spring Boot application (Backend & Web Server).
+* **`main.newsmap/`**: The main JavaFX application (Backend & Web Server).
 * **`embeddings-service/`**: A Python microservice responsible for generating text embeddings and handling ML tasks.
-* **`configs/newsConfigs/`**: Configuration files for news sources and API settings.
+* **`configs/newsConfigs/`**: Configuration files for news sources and crawling settings.
 
 ## ⚙️ Prerequisites
 
 Before you begin, ensure you have the following installed:
 
-* **Java 17** or higher
+* **Java 21** or higher
 * **Python 3.9** or higher
 * **Maven** (or use the included `mvnw` wrapper)
