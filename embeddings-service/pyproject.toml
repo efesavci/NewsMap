@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "embedding-service"
+version = "0.1.0"
+description = "Modular embedding, clustering, and visualization pipelines for article corpora."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "numpy>=1.24",
+  "h5py>=3.10",
+  "tqdm>=4.66",
+  "transformers>=4.57",
+  "torch>=2.0",
+  "umap-learn>=0.5",
+  "scikit-learn>=1.4",
+  "hdbscan>=0.8",
+  "plotly>=5.20",
+  "pandas>=2.2",
+  "pyyaml>=6.0",
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]

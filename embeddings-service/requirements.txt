@@ -1,6 +1,11 @@
-fastapi
-uvicorn
-sentence-transformers
-
-numpy~=2.3.5
-transformers~=4.57.1
+numpy>=1.24
+h5py>=3.10
+tqdm>=4.66
+transformers>=4.57
+torch>=2.0
+umap-learn>=0.5
+scikit-learn>=1.4
+hdbscan>=0.8
+plotly>=5.20
+pandas>=2.2
+pyyaml>=6.0
