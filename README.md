@@ -1,84 +1,207 @@
-# NewsMap 🌍📰
+# NewsMap
 
-**Interactive world map for discovering the latest and most important news by region.**
+**A location-aware news discovery platform that turns individual articles into persistent, evolving events on a 3D globe.**
 
-NewsMap is a full-stack application that turns fetched articles into persistent news events and visualizes them on an interactive world map. A Java Spring Boot backend serves the browser application, while a local Python pipeline creates embeddings and decides whether each new article belongs to an existing event or starts a new one.
+NewsMap is a local-first full-stack prototype for exploring how the same real-world event is reported across sources and over time. Instead of sending every article to an LLM or rebuilding unstable clusters after each crawl, the system embeds articles locally and asks a continuous question:
 
-## 🚀 Features
+> Does this article belong to an existing event, or is it the first report of a new one?
 
-* **Interactive Map Interface**: Clickable world map to filter news by country or region.
-* **Real-Time Headlines**: Fetches the latest news using open news APIs.
-* **Persistent Events**: Assigns stable event IDs and lifecycle states that survive later fetch and matching runs.
-* **My Radar**: Persists follows and ranks active events with inspectable personalization reasons.
-* **Local Semantic Matching**: Combines embeddings, title overlap, entities, recency, and source evidence without requiring an LLM API key.
-* **Offline Quality Analysis**: Retains HDBSCAN as a corpus-analysis tool rather than the live product identity model.
-* **Region-Based Filtering**: Intuitively browse news specific to selected geographical areas.
-* **Modern Tech Stack**: Built with Java Spring Boot for robust backend handling and Python for specialized ML tasks.
+The result is a set of stable event identities that can support timelines, source comparison, follows, personalized ranking, and notifications as the story develops.
 
-## 🛠️ Tech Stack
+## Why this project exists
 
-* **Backend**: Java
-* **AI/ML Service**: Python (Embeddings, Text Mining)
-* **Build Tool**: Maven
-* **Frontend**: React (interactive 3D globe); the original JavaFX client remains during migration
-* **Data**: General-purpose website crawler written in Java
+Traditional news feeds are organized around articles. This creates repetition, makes it difficult to follow an evolving story, and treats multiple reports about the same event as unrelated items.
 
-## 📂 Project Structure
+NewsMap experiments with an event-centered alternative:
 
-* **`src/main/newsmap/web/`**: Spring Boot API and pipeline scheduler.
-* **`frontend/`**: React globe application.
-* **`embeddings-service/`**: Local embedding, persistent-event matching, and offline clustering pipeline.
-* **`configs/newsConfigs/`**: Configuration files for news sources and crawling settings.
+- collect reporting from multiple international publishers;
+- detect duplicate and related coverage using local embeddings and structured signals;
+- preserve event IDs across subsequent pipeline runs;
+- infer where events are happening and display them geographically;
+- let users follow topics, locations, entities, sources, or individual events;
+- notify users about meaningful event changes rather than every new article.
 
-## ⚙️ Prerequisites
+## Current capabilities
 
-Before you begin, ensure you have the following installed:
+- **Interactive 3D globe** with zoom-aware hotspot aggregation and event exploration.
+- **Multi-source Java crawler** configured for AP, BBC, CNN, Euronews, and Al Jazeera.
+- **Incremental fetching** with a persistent crawl ledger that rejects previously fetched canonical URLs.
+- **Persistent event matching** using embeddings, entities, title overlap, recency, location, and source evidence.
+- **Stable event lifecycle** with `ACTIVE`, `DORMANT`, and `ARCHIVED` states plus reopening support.
+- **Local geolocation** from explicit place evidence, with an optional Gemini fallback for ambiguous events.
+- **Accounts and session authentication** with BCrypt password hashing and CSRF protection.
+- **My Radar** for following interests and ranking active events with inspectable matching reasons.
+- **Event-driven notifications** with priorities, quiet hours, per-follow notification levels, digest aggregation, and a durable delivery outbox.
+- **Offline quality analysis** using UMAP and HDBSCAN without making corpus-wide clustering the product's identity layer.
 
-* **Java 21** or higher
-* **Python 3.9** or higher
-* **Maven** (or use the included `mvnw` wrapper)
+## How it works
 
-No external AI API key is required for fetching, embedding, event matching, or clustering.
+```mermaid
+flowchart LR
+    A["Configured news sites"] --> B["Java crawler"]
+    B --> C["Canonical URL ledger"]
+    B --> D["Local article batch"]
+    D --> E["Local embedding pipeline"]
+    E --> F["Persistent event matcher"]
+    F --> G["Stable event store"]
+    G --> H["Location enrichment"]
+    H --> I["Spring Boot API"]
+    I --> J["React 3D globe"]
+    G --> K["Radar and notifications"]
+    K --> I
+    E -.-> L["Offline UMAP + HDBSCAN quality pass"]
+```
 
-Event locations are resolved from explicit place evidence locally. To enable the optional fallback for ambiguous events, create a Gemini API key and expose it before starting the backend:
+The persistent event database is the canonical identity layer. HDBSCAN remains useful for offline evaluation and the current legacy hotspot projection, but it does not determine stable event IDs.
+
+## Technology stack
+
+| Layer | Technologies |
+| --- | --- |
+| Frontend | React 19, Vite, Three.js, `react-globe.gl`, Supercluster |
+| Backend | Java 21, Spring Boot 3, Spring Security, embedded Tomcat |
+| Storage | SQLite for events, accounts, follows, notifications, and crawl history |
+| ML pipeline | Python 3.10+, PyTorch, Transformers, Jina embeddings, UMAP, HDBSCAN, scikit-learn |
+| Data collection | Java, jsoup, Crawler Commons, source-specific JSON configuration |
+
+No external AI API key is required for crawling, embedding, event matching, clustering, accounts, or personalization.
+
+## Project structure
+
+```text
+NewsMap/
+├── src/
+│   ├── crawler/                 # Source crawling and duplicate prevention
+│   ├── analysis/                # Location and hotspot enrichment
+│   └── main/newsmap/
+│       ├── web/                 # Spring Boot API, auth, scheduler, Radar, notifications
+│       └── ...                  # Original JavaFX client retained during migration
+├── frontend/                    # React/Vite browser application
+├── embeddings-service/         # Embeddings, event matching, clustering, and tests
+├── configs/newsConfigs/         # Publisher crawling rules
+├── resources/                   # Spring configuration and geographic data
+└── docs/                        # Product and implementation roadmaps
+```
+
+## Running locally
+
+### Prerequisites
+
+- Java 21+
+- Python 3.10+
+- Node.js and npm
+- A Unix-like shell for the commands below
+
+### 1. Prepare the Python environment
+
+From the repository root:
+
+```bash
+cd embeddings-service
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+pip install -e .
+cd ..
+```
+
+The first embedding run may take longer while the local model is downloaded and initialized.
+
+### 2. Start the backend
+
+```bash
+./mvnw spring-boot:run
+```
+
+The API runs at `http://127.0.0.1:8080`.
+
+### 3. Start the frontend
+
+In a second terminal:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open `http://127.0.0.1:5173`.
+
+## Automatic news pipeline
+
+While the backend is running, Spring schedules the incremental gathering pipeline every 15 minutes. The interval and per-source limit are configured in `resources/application.properties`:
+
+```properties
+newsmap.pipeline.cron=0 */15 * * * *
+newsmap.pipeline.max-articles-per-source=100
+```
+
+Each scheduled run:
+
+1. crawls the configured publisher pages;
+2. skips canonical URLs already recorded in `data/crawl-ledger.db`;
+3. embeds only the newly collected article batch;
+4. matches those articles against persistent events;
+5. enriches event locations and refreshes notification state;
+6. runs an offline clustering quality pass and updates the globe projection.
+
+If no new articles are found, the expensive embedding and matching stages are skipped.
+
+## Optional Gemini location fallback
+
+Most location evidence is resolved locally. A Gemini key can optionally be supplied for events whose location remains ambiguous:
 
 ```bash
 export GEMINI_API_KEY="your-key"
 ./mvnw spring-boot:run
 ```
 
-`GOOGLE_API_KEY` is also accepted. The fallback model defaults to `gemini-2.5-flash-lite` and can be overridden with `GEMINI_MODEL`. Unresolved locations are not cached permanently, so restarting after adding a key retries them.
+`GOOGLE_API_KEY` is also accepted. The fallback model defaults to `gemini-2.5-flash-lite` and can be changed with `GEMINI_MODEL`.
 
-## Persistent event API
+## Main API areas
 
-After running the pipeline and starting Spring Boot, the event projection is available at:
+Public news exploration:
 
-* `GET /api/events?status=ACTIVE&minArticles=1`
-* `GET /api/events/{eventId}`
+- `GET /api/events`
+- `GET /api/events/{eventId}`
+- `GET /api/hotspots`
+- `GET /api/articles`
 
-The canonical event state is stored in `embeddings-service/outputs/events.db`. The API reads its generated and geolocated `events.json` projection. Re-running the matcher is idempotent: already assigned articles are skipped and existing event IDs remain stable. Client-side spatial clustering changes only marker presentation; it never replaces or renumbers events.
+Authentication:
 
-Events move from `ACTIVE` to `DORMANT` and eventually `ARCHIVED` based on inactivity. Durable update records preserve creation, report additions, source additions, lifecycle changes, and reopening signals for later notification decisions.
+- `GET /api/auth/csrf`
+- `POST /api/auth/signup`
+- `POST /api/auth/login`
+- `POST /api/auth/logout`
+- `GET /api/auth/me`
 
-## Local personalization API
+Authenticated personalization:
 
-V3 begins with a persistent local development profile:
+- `GET /api/radar`
+- `/api/users/{userId}/follows`
+- `/api/users/{userId}/notification-preferences`
+- `/api/notifications`
+- `/api/notifications/outbox`
 
-* `GET /api/users/local`
-* `POST /api/users/local/follows` with `{ "type": "CATEGORY", "value": "WAR" }`
-* `DELETE /api/users/local/follows?type=CATEGORY&value=WAR`
-* `PUT /api/users/local/follows/notification-level` with `{ "type": "CATEGORY", "value": "WAR", "notificationLevel": "IMPORTANT" }`
-* `GET /api/radar?userId=local`
-* `GET /api/notifications?userId=local`
-* `POST /api/notifications/refresh?userId=local`
-* `POST /api/notifications/{notificationId}/read?userId=local`
-* `POST /api/notifications/read-all?userId=local`
-* `GET /api/notifications/outbox?userId=local&status=PENDING`
-* `GET /api/users/local/notification-preferences`
-* `PUT /api/users/local/notification-preferences`
+Pipeline and event-quality endpoints are also available for local inspection. Protected mutations use session authentication and CSRF tokens.
 
-The preference model supports `CATEGORY`, `LOCATION`, `ENTITY`, `SOURCE`, and `EVENT` follows. The full delivery plan and deployment boundaries are documented in `docs/v3-personalization-roadmap.md`. Public deployment still requires authenticated server-side identities; the local profile is not an authentication substitute.
+## Persistence model
 
-The in-app inbox is generated from durable event updates. Notification generation is idempotent, ignores event history from before a follow began, and stores read state in `data/personalization.db`. Broad follows alert on new events, reopening, and newly independent sources; direct event follows can also receive finer report and status updates. Each change is stored with `NORMAL` or `HIGH` priority. Individual follows support `ALL`, `IMPORTANT`, and `MUTED` notification levels. Delivery preferences persist alert enablement, minimum priority, quiet hours, and IANA timezone. They are deliberately separate from the inbox: disabling future push or email alerts does not erase meaningful event changes already recorded in the app.
+- `embeddings-service/outputs/events.db` stores canonical event identity and lifecycle state.
+- `embeddings-service/outputs/events.json` is the generated, geolocated API projection.
+- `data/crawl-ledger.db` records fetched canonical article URLs.
+- `data/personalization.db` stores accounts, follows, preferences, inbox state, and delivery intent.
 
-Eligible notification changes are also written to a durable delivery outbox. Changes for the same user and event share one open digest bundle, with a five-minute aggregation window. New changes extend that bundle instead of creating delivery spam. Quiet hours postpone normal-priority bundles to the configured local end time; high-priority bundles bypass the quiet-hour delay. The outbox currently records delivery intent and retry metadata but does not send email or push notifications yet.
+Generated data and local databases are intentionally excluded from version control.
+
+## Current status and limitations
+
+NewsMap is an active local prototype, not yet a production deployment.
+
+- Event matching and location inference still need evaluation against a labeled news-event dataset.
+- Email and push delivery are not connected; the durable outbox currently records delivery intent and retry metadata.
+- SQLite and server-local sessions are appropriate for local development but need a deployment plan for multi-instance hosting.
+- The original JavaFX client remains in the repository while the browser migration is completed.
+- Some globe hotspot output still depends on the legacy offline clustering projection; the persistent event feed is the intended long-term source of truth.
+
+The next product direction is to improve event pages with timelines, source and perspective comparison, confidence indicators, and concise “what changed?” updates. The personalization roadmap is documented in [`docs/v3-personalization-roadmap.md`](docs/v3-personalization-roadmap.md).
