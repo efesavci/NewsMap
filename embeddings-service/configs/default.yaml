@@ -5,7 +5,7 @@ embedding:
   model_name: jinaai/jina-embeddings-v3
   trust_remote_code: true
   batch_size: 4
-  max_length: 4096
+  max_length: 512
   normalize_newlines: true
 
 paths:
@@ -18,8 +18,8 @@ paths:
 reduction:
   method: umap
   n_components: 12
-  n_neighbors: 15
-  min_dist: 0.1
+  n_neighbors: 10
+  min_dist: 0.0
   metric: cosine
   random_state: 42
 
@@ -38,9 +38,10 @@ clustering:
     min_samples: 5
     metric: euclidean
   hdbscan:
-    min_cluster_size: 12
-    min_samples: 5
+    min_cluster_size: 4
+    min_samples: 2
     metric: euclidean
+    cluster_selection_method: leaf
 
 visualization:
   color_by: source

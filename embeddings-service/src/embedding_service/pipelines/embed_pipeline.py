@@ -9,6 +9,7 @@ from embedding_service.io.articles import load_articles
 from embedding_service.io.embeddings import save_embeddings_h5
 
 logger = logging.getLogger(__name__)
+MAX_BODY_CHARS = 2_000
 
 
 def run_embed_pipeline(
@@ -25,7 +26,7 @@ def run_embed_pipeline(
     Robust replacement for old `main.py`, separating IO/model/storage concerns.
     """
     articles = load_articles(input_dir=input_dir, normalize_newlines=normalize_newlines)
-    texts = [article.body for article in articles]
+    texts = [f"{article.title or ''}\n\n{article.body[:MAX_BODY_CHARS]}".strip() for article in articles]
     embedder = JinaEmbedder(model_name=model_name, trust_remote_code=trust_remote_code, max_length=max_length)
     vectors = embedder.embed(texts=texts, batch_size=batch_size)
     save_embeddings_h5(path=output_h5, articles=articles, vectors=vectors)

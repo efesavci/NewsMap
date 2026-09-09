@@ -35,16 +35,21 @@ def run_cluster_pipeline(
         raise ValueError(f"Unsupported reducer: {reducer_method}")
     reduced = UmapReducer(**reducer_params).fit_transform(vectors)
 
+    probabilities = None
     if clusterer_method == "dbscan":
         labels = DbscanClusterer(**dbscan_params).fit_predict(reduced)
     elif clusterer_method == "hdbscan":
-        labels = HdbscanClusterer(**hdbscan_params).fit_predict(reduced)
+        clusterer = HdbscanClusterer(**hdbscan_params)
+        labels = clusterer.fit_predict(reduced)
+        probabilities = clusterer.probabilities
     else:
         raise ValueError(f"Unsupported clusterer: {clusterer_method}")
 
     rows = []
-    for article_id, label, attrs in zip(ids, labels.tolist(), metadata, strict=True):
+    for index, (article_id, label, attrs) in enumerate(zip(ids, labels.tolist(), metadata, strict=True)):
         row = {"embedding_id": article_id, "cluster_label": int(label), **attrs}
+        if probabilities is not None:
+            row["cluster_probability"] = float(probabilities[index])
         rows.append(row)
     df = pd.DataFrame(rows)
 

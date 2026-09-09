@@ -30,6 +30,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--hdbscan-min-cluster-size", type=int, default=None)
     p.add_argument("--hdbscan-min-samples", type=int, default=None)
     p.add_argument("--hdbscan-metric", type=str, default=None)
+    p.add_argument("--hdbscan-cluster-selection-method", choices=["eom", "leaf"], default=None)
     p.add_argument("--log-level", type=str, default=None)
     return p
 
@@ -63,6 +64,12 @@ def main() -> None:
             "min_cluster_size": int(pick(args.hdbscan_min_cluster_size, conf, "clustering.hdbscan.min_cluster_size", 12)),
             "min_samples": int(pick(args.hdbscan_min_samples, conf, "clustering.hdbscan.min_samples", 5)),
             "metric": pick(args.hdbscan_metric, conf, "clustering.hdbscan.metric", "euclidean"),
+            "cluster_selection_method": pick(
+                args.hdbscan_cluster_selection_method,
+                conf,
+                "clustering.hdbscan.cluster_selection_method",
+                "eom",
+            ),
         },
     )
     print(json.dumps(result, indent=2))

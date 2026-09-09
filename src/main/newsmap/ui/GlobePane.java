@@ -91,20 +91,19 @@ public class GlobePane extends StackPane {
         );
         controls.attach();
 
-        /* TODO
-            Will be fetching news and use embedding techniques and cluster them by tags,location, and topic.
-            Finally we will also be create a database to store each article with their location with 1 day expire time.
-            We will most probably make a timeline because we just want to show the latest (last 2 hours or so)
-            and users can access even earlier news using the timeline.
+        /*
+         * Load real clustered news hotspots from the Python pipeline outputs.
          */
-        var list = List.of(new Article("Trump says he's terminating trade talks with Canada over TV ad about tariffs",
-                "ABC-NEWS",
-                "https://abcnews.go.com/Politics/trump-terminating-trade-talks-canada-tv-ad-tariffs/story?id=126821528",
-                System.currentTimeMillis()));
-        hotspotManager.spawnHotspot(52.5200, 13.4050, list, HotspotCategory.POLITICS, "Berlin, Germany");
-        hotspotManager.spawnHotspot(40.7128, -74.0060, list, HotspotCategory.BUSINESS, "New York, USA");
-        hotspotManager.spawnHotspot(41.0082, 28.9784, list, HotspotCategory.TECHNOLOGY, "Istanbul, Turkey");
-        hotspotManager.spawnHotspot(51.509865, -0.118092, list, HotspotCategory.HEALTH, "London, UK");
+        var dynamicHotspots = analysis.ClusterInspector.generateHotspots();
+        for (var dto : dynamicHotspots) {
+            // Convert DTOs back to JavaFX model for the UI
+            var articles = dto.articles().stream()
+                .map(a -> new main.newsmap.model.Article(a.title(), a.source(), a.url(), a.timestamp()))
+                .toList();
+
+            HotspotCategory cat = HotspotCategory.valueOf(dto.category());
+            hotspotManager.spawnHotspot(dto.lat(), dto.lon(), articles, cat, dto.location());
+        }
     }
 
     public void bindSubSceneTo(javafx.scene.Scene scene) {
@@ -112,4 +111,3 @@ public class GlobePane extends StackPane {
         scene.heightProperty().addListener((o, ov, nv) -> sub.setHeight(nv.doubleValue()));
     }
 }
-

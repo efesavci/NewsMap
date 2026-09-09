@@ -1,0 +1,24 @@
+.interest-shell { min-height: 100vh; box-sizing: border-box; padding: 32px 45px 45px; background: radial-gradient(circle at 72% 28%,rgba(185,217,139,.07),transparent 24%),#080b0f; color: #eee9df; }
+.interest-shell > header { display: flex; justify-content: space-between; color: #676c69; font-family: ui-monospace,"SFMono-Regular",Menlo,monospace; font-size: .56rem; letter-spacing: .16em; }
+.interest-shell > header span { color: #eee9df; font-weight: 700; letter-spacing: .24em; }
+.interest-shell > section { width: min(960px,100%); margin: 10vh auto 0; }
+.interest-kicker { display: flex; align-items: center; gap: 9px; color: #7f8481; font-family: ui-monospace,"SFMono-Regular",Menlo,monospace; font-size: .59rem; letter-spacing: .11em; text-transform: uppercase; }
+.interest-kicker i { width: 20px; height: 1px; background: #f27d5f; }
+.interest-shell h1 { margin: 19px 0 18px; font-size: clamp(3.2rem,6.2vw,5.7rem); line-height: .89; letter-spacing: -.07em; font-weight: 520; }
+.interest-copy { max-width: 570px; color: #858a87; font-size: .82rem; line-height: 1.65; }
+.interest-grid { display: grid; grid-template-columns: repeat(5,1fr); margin-top: 48px; border-top: 1px solid rgba(238,233,223,.13); border-bottom: 1px solid rgba(238,233,223,.13); }
+.interest-grid button { min-height: 170px; padding: 17px 15px; display: flex; flex-direction: column; align-items: flex-start; border: 0; border-right: 1px solid rgba(238,233,223,.1); background: transparent; color: #eee9df; text-align: left; cursor: pointer; transition: background 180ms ease; }
+.interest-grid button:last-child { border-right: 0; }
+.interest-grid button:hover, .interest-grid button.active { background: rgba(185,217,139,.055); }
+.interest-grid button > span { color: #5e6360; font-family: ui-monospace,"SFMono-Regular",Menlo,monospace; font-size: .54rem; }
+.interest-grid button strong { margin-top: 35px; font-size: .88rem; font-weight: 540; }
+.interest-grid button small { margin-top: 6px; color: #666b68; font-size: .61rem; line-height: 1.5; }
+.interest-grid button b { margin-top: auto; align-self: flex-end; color: #5d625f; font-size: .9rem; font-weight: 400; }
+.interest-grid button.active b { color: #b9d98b; }
+.interest-actions { margin-top: 25px; display: flex; justify-content: flex-end; align-items: center; gap: 24px; }
+.interest-actions button { font: inherit; cursor: pointer; }
+.interest-skip { border: 0; background: transparent; color: #656a67; font-size: .65rem; }
+.interest-continue { min-width: 200px; padding: 13px 15px; display: flex; justify-content: space-between; border: 0; background: #eee9df; color: #080b0f; font-size: .7rem; font-weight: 650; }
+.interest-continue:disabled { opacity: .35; cursor: not-allowed; }
+.interest-error { margin-top: 15px; color: #f3a08a; font-size: .65rem; }
+@media (max-width:800px) { .interest-shell { padding: 25px; } .interest-shell > section { margin-top: 7vh; } .interest-grid { grid-template-columns: 1fr; } .interest-grid button { min-height: 92px; border-right: 0; border-bottom: 1px solid rgba(238,233,223,.08); } .interest-grid button strong { margin-top: 14px; } }

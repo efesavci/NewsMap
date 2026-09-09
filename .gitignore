@@ -65,3 +65,6 @@ Thumbs.db
 /data
 /embeddings-service/.venv1
 /embeddings-service/embeddings/*
+/embeddings-service/outputs/
+__pycache__/
+*.py[cod]

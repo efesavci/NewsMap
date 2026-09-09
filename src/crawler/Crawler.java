@@ -17,14 +17,26 @@ import java.net.URI;
 import static crawler.CrawlerUtils.*;
 
 public class Crawler {
-    /** One global timestamp for this crawl batch (same across all sites). */
-    public static final Instant CRAWL_RUN_TIMESTAMP = Instant.now();
+    public record CrawlStats(
+            String source,
+            int candidates,
+            int fetched,
+            int skippedKnown,
+            int empty,
+            int failed,
+            long durationMs
+    ) {}
 
     private final SiteConfig config;
     private final Set<String> visited = new HashSet<>();
+    private final CrawlLedger ledger;
 
     private int maxArticlesToFetch;
     private int currentArticlesFetched = 0;
+    private int articleCandidates = 0;
+    private int skippedKnown = 0;
+    private int emptyArticles = 0;
+    private int failedArticles = 0;
 
     private final FileFormat outputFormat;
     private final boolean outputAsBatch;
@@ -35,18 +47,26 @@ public class Crawler {
     @Nullable
     private final Writer batchFileWriter;
 
-    public Crawler(SiteConfig config, int maxArticlesToFetch, FileFormat outputFormat, boolean isConcurrent) throws IOException{
+    public Crawler(
+            SiteConfig config,
+            int maxArticlesToFetch,
+            FileFormat outputFormat,
+            boolean isConcurrent,
+            Instant crawlRunTimestamp,
+            CrawlLedger ledger
+    ) throws IOException{
         crawler_info("Initializing Crawler for " + config.baseUrl());
         this.config = config;
         this.maxArticlesToFetch = maxArticlesToFetch;
         this.outputFormat = outputFormat;
+        this.ledger = ledger;
         this.outputAsBatch = switch (outputFormat) {
             case JSONL, PARQUET -> true;
             default -> false;
         };
         if (outputAsBatch) {
             String extension = FileFormat.getExtensionFromFormat(outputFormat);
-            this.batchFile = createBatchFile(config,extension,CRAWL_RUN_TIMESTAMP,isConcurrent);
+            this.batchFile = createBatchFile(config, extension, crawlRunTimestamp, isConcurrent);
             if (!batchFile.exists()) {
                 batchFile.getParentFile().mkdirs();
                 batchFile.createNewFile();
@@ -58,7 +78,8 @@ public class Crawler {
         }
     }
 
-    public void crawl() {
+    public CrawlStats crawl() {
+        long startedAt = System.currentTimeMillis();
         crawler_info("Starting crawl for: " + config.baseUrl());
         try {
             crawl(config.baseUrl(), 0);
@@ -68,6 +89,10 @@ public class Crawler {
         } finally {
             close();
         }
+        return new CrawlStats(
+                config.baseUrl(), articleCandidates, currentArticlesFetched, skippedKnown,
+                emptyArticles, failedArticles, System.currentTimeMillis() - startedAt
+        );
     }
 
     /** Main recursive crawler entry point */
@@ -109,10 +134,17 @@ public class Crawler {
         for (String sel : config.articleSelectors()) {
             for (Element link : doc.select(sel)) {
 
-                String articleUrl = link.absUrl("href");
+                String articleUrl = CrawlLedger.canonicalize(link.absUrl("href"));
 
                 if (articleUrl.isEmpty() || visited.contains(articleUrl)) continue;
                 if (!isAllowed(articleUrl)) continue;
+                articleCandidates++;
+                if (!ledger.claimIfNew(articleUrl)) {
+                    visited.add(articleUrl);
+                    skippedKnown++;
+                    if (isMaxArticlesReached()) return;
+                    continue;
+                }
 
                 visited.add(articleUrl);
                 try {
@@ -123,18 +155,31 @@ public class Crawler {
 
                     Article article = parse(articleDoc, articleUrl);
 
+                    if (article.body() == null || article.body().isBlank()) {
+                        ledger.releaseClaim(articleUrl);
+                        emptyArticles++;
+                        crawler_warn("Skipping article with an empty body: " + articleUrl);
+                        continue;
+                    }
+
                     switch (outputFormat) {
                         case JSON -> article.saveAsSingleJSON();
                         case JSONL -> article.appendToJsonBatch(batchFileWriter);
                         // case PARQUET -> article.appendToParquetBatch();
                     }
 
+                    ledger.record(article);
+
                     crawler_info("Saved article: " + articleUrl);
                     currentArticlesFetched++;
 
                 } catch (IOException e) {
+                    ledger.releaseClaim(articleUrl);
+                    failedArticles++;
                     crawler_error("I/O crawler_error @ " + articleUrl + ": " + e.getMessage());
                 } catch (Exception e) {
+                    ledger.releaseClaim(articleUrl);
+                    failedArticles++;
                     crawler_error("Unexpected crawler_error parsing article: " + articleUrl);
                     e.printStackTrace();
                 }
@@ -171,8 +216,9 @@ public class Crawler {
     // Helpers
     //===========================================
     private boolean isMaxArticlesReached() {
-        if (currentArticlesFetched >= maxArticlesToFetch) {
-            crawler_info("Max articles reached:" + currentArticlesFetched);
+        if (articleCandidates >= maxArticlesToFetch) {
+            crawler_info("Article candidate budget reached: " + articleCandidates +
+                    " (new: " + currentArticlesFetched + ", known: " + skippedKnown + ")");
             return true;
         }
         return false;
