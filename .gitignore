@@ -68,3 +68,9 @@ Thumbs.db
 /embeddings-service/outputs/
 __pycache__/
 *.py[cod]
+
+# Private deployment configuration and database backups
+/deploy/.env
+/backups/
+
+/deploy/openrouter.env.local

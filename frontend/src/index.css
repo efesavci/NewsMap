@@ -1720,3 +1720,9 @@ body {
   background: rgba(185, 217, 139, 0.045);
   color: #aebf97;
 }
+
+.preview-banner { position: absolute; bottom: 10px; left: 16px; right: 16px; z-index: 50; text-align: center; font-size: 11px; color: #b3c3ce; pointer-events: none; }
+
+.library-load-error { position:absolute; z-index:100; top:90px; right:32px; max-width:340px; background:#452c26; color:#fff; padding:14px; border-radius:8px; font-size:12px; }
+
+.location-evidence { margin: 10px 0 18px; padding: 8px 12px; border-left: 2px solid #a6b47d; color: #b5c1c8; font-size: 12px; line-height: 1.6; }

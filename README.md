@@ -129,10 +129,10 @@ Open `http://127.0.0.1:5173`.
 
 ## Automatic news pipeline
 
-While the backend is running, Spring schedules the incremental gathering pipeline every 15 minutes. The interval and per-source limit are configured in `resources/application.properties`:
+While the backend is running, Spring schedules the incremental gathering pipeline every two hours. The interval and per-source limit are configured in `resources/application.properties`:
 
 ```properties
-newsmap.pipeline.cron=0 */15 * * * *
+newsmap.pipeline.cron=0 0 */2 * * *
 newsmap.pipeline.max-articles-per-source=100
 ```
 
@@ -140,12 +140,18 @@ Each scheduled run:
 
 1. crawls the configured publisher pages;
 2. skips canonical URLs already recorded in `data/crawl-ledger.db`;
-3. embeds only the newly collected article batch;
-4. matches those articles against persistent events;
-5. enriches event locations and refreshes notification state;
-6. runs an offline clustering quality pass and updates the globe projection.
+3. freezes new input into persistent batches in `data/article-batches/`;
+4. embeds pending batches, reusing a completed embedding checkpoint on retry;
+5. matches new articles against an in-memory shortlist of persistent events;
+6. enriches event locations, refreshes notifications, and acknowledges successful batches.
 
-If no new articles are found, the expensive embedding and matching stages are skipped.
+Failed batches survive restarts and are retried even when a crawl finds no new URLs.
+Input is flushed to disk before its URL is marked fetched. UMAP/HDBSCAN quality
+analysis runs separately through its CLI, outside the scheduled fetching path.
+Native macOS runs select Apple MPS when available, with a CPU fallback. Set
+`NEWSMAP_EMBEDDING_DEVICE=cpu` to force CPU processing.
+
+If there are no new or pending articles, embedding and matching are skipped.
 
 ## Optional Gemini location fallback
 
@@ -157,6 +163,14 @@ export GEMINI_API_KEY="your-key"
 ```
 
 `GOOGLE_API_KEY` is also accepted. The fallback model defaults to `gemini-2.5-flash-lite` and can be changed with `GEMINI_MODEL`.
+
+## Optional OpenRouter enrichment
+
+The backend can enrich recent events with location evidence, category and topic
+tags using one bounded OpenRouter request per event. It caches responses, enforces
+a persistent local spending guard, and resolves coordinates from local geographic
+records. No AI API calls run without a configured key. See
+[OpenRouter setup and five-event pilot](docs/openrouter-enrichment.md).
 
 ## Main API areas
 
@@ -194,6 +208,8 @@ Pipeline and event-quality endpoints are also available for local inspection. Pr
 
 Generated data and local databases are intentionally excluded from version control.
 
+Saved news is independent of the live map: users can save complete event snapshots in their profile, move them to Archive, and read them after the 48-hour reporting window. See [live deployment setup](docs/live-deployment.md) for the persistent backend hosting package and current preview limitations.
+
 ## Current status and limitations
 
 NewsMap is an active local prototype, not yet a production deployment.
@@ -202,6 +218,6 @@ NewsMap is an active local prototype, not yet a production deployment.
 - Email and push delivery are not connected; the durable outbox currently records delivery intent and retry metadata.
 - SQLite and server-local sessions are appropriate for local development but need a deployment plan for multi-instance hosting.
 - The original JavaFX client remains in the repository while the browser migration is completed.
-- Some globe hotspot output still depends on the legacy offline clustering projection; the persistent event feed is the intended long-term source of truth.
+- The legacy `/api/hotspots` projection requires a separate offline clustering run. The current browser consumes persistent `/api/events` instead.
 
 The next product direction is to improve event pages with timelines, source and perspective comparison, confidence indicators, and concise “what changed?” updates. The personalization roadmap is documented in [`docs/v3-personalization-roadmap.md`](docs/v3-personalization-roadmap.md).

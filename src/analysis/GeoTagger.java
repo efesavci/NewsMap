@@ -44,6 +44,9 @@ public class GeoTagger {
             apiKey = System.getenv("GOOGLE_API_KEY");
         }
 
+        // OpenRouter owns optional AI enrichment when configured; avoid a second paid provider.
+        if (analysis.enrichment.OpenRouterEnricher.configured()) apiKey = null;
+
         // 1. Generate a stable cache key based on the top 3 article titles
         String cacheKey = generateCacheKey(articles);
         

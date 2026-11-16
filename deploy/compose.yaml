@@ -1,0 +1,52 @@
+name: newsmap
+services:
+  backend:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    restart: unless-stopped
+    init: true
+    stop_grace_period: 60s
+    env_file:
+      - path: ./openrouter.env.local
+        required: false
+    environment:
+      NEWSMAP_PIPELINE_CRON: "0 0 */2 * * *"
+      NEWSMAP_SECURE_COOKIES: "true"
+      NEWSMAP_FRONTEND_ORIGIN: "${NEWSMAP_FRONTEND_ORIGIN:-https://newsmap-supdewdz.vercel.app}"
+      JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=25.0"
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - newsmap-data:/app/data
+      - newsmap-events:/app/embeddings-service/outputs
+      - newsmap-models:/app/model-cache
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+  https:
+    image: caddy:2
+    profiles: [public]
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      NEWSMAP_API_HOST: "${NEWSMAP_API_HOST:-api.example.com}"
+      NEWSMAP_TLS_EMAIL: "${NEWSMAP_TLS_EMAIL:-}"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - newsmap-tls:/data
+      - newsmap-caddy-config:/config
+volumes:
+  newsmap-data:
+  newsmap-events:
+  newsmap-models:
+  newsmap-tls:
+  newsmap-caddy-config:

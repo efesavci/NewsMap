@@ -128,7 +128,8 @@ class EventMatcher:
                 time_compatibility=time_score,
                 accepted=accepted,
             )
-            if decision.score > best.score:
+            # A rejected high score must not hide a valid lower-scoring match.
+            if (decision.accepted, decision.score) > (best.accepted, best.score):
                 best = decision
 
         return best

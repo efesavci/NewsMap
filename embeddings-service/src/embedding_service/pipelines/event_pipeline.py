@@ -7,6 +7,7 @@ import logging
 
 from embedding_service.events.event_matcher import EventMatcher, parse_timestamp
 from embedding_service.events.event_store import EventStore
+from embedding_service.events.candidate_index import EventCandidateIndex
 from embedding_service.io.embeddings import load_embeddings_h5
 
 
@@ -34,8 +35,9 @@ def run_event_pipeline(
     records.sort(key=lambda item: (item[0], item[1]))
 
     matcher = EventMatcher(threshold=threshold, active_window_hours=active_window_hours)
-    created = matched = skipped = 0
+    created = matched = skipped = comparisons = 0
     with EventStore(state_db) as store:
+        index = EventCandidateIndex(store.matchable_events(), vectors.shape[1])
         for published_at, article_id, vector, raw in records:
             if store.has_article(article_id):
                 skipped += 1
@@ -47,12 +49,15 @@ def run_event_pipeline(
                 "source": str(raw.get("source") or "Unknown source"),
                 "url": str(raw.get("url") or ""),
                 "publish_time": published_at.isoformat(),
+                "excerpt": str(raw.get("excerpt") or "")[:800],
             }
+            candidates = index.shortlist(vector, published_at, active_window_hours)
+            comparisons += len(candidates)
             decision = matcher.match(
                 vector=vector,
                 title=article["title"],
                 published_at=published_at,
-                candidates=store.matchable_events(),
+                candidates=candidates,
             )
             if decision.accepted and decision.event_id:
                 store.attach_article(
@@ -67,6 +72,8 @@ def run_event_pipeline(
                 store.create_event(event_id=stable_event_id(article_id), article=article, vector=vector)
                 created += 1
 
+            index.update(store.matching_event(decision.event_id if decision.accepted else stable_event_id(article_id)))
+
         reference_time = records[-1][0] if records else parse_timestamp("")
         lifecycle = store.refresh_lifecycle(reference_time=reference_time)
         projection = store.export_json(output_json, engine_version="persistent-events-v2")
@@ -77,6 +84,7 @@ def run_event_pipeline(
         "created": created,
         "matched": matched,
         "skipped": skipped,
+        "detailedComparisons": comparisons,
         "lifecycle": lifecycle,
         "stateDb": state_db,
         "outputJson": output_json,

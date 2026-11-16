@@ -8,6 +8,9 @@ import NotificationPanel from './components/NotificationPanel';
 import AuthScreen from './components/AuthScreen';
 import EnginePanel from './components/EnginePanel';
 import InterestOnboarding from './components/InterestOnboarding';
+import SavedLibrary from './components/SavedLibrary';
+
+import { previewMode } from './previewApi';
 
 const API_BASE = '';
 axios.defaults.withCredentials = true;
@@ -21,6 +24,9 @@ function eventToHotspot(event, radar = {}) {
     location: event.location,
     locationConfidence: event.locationConfidence,
     locationMethod: event.locationMethod,
+    locationScope: event.locationScope,
+    locationEvidence: event.locationEvidence || [],
+    tags: event.tags || [],
     category: event.category || 'OTHER',
     confidence: event.confidence,
     sources: event.sources,
@@ -35,6 +41,11 @@ function eventToHotspot(event, radar = {}) {
 }
 
 function App() {
+  const [savedEvents, setSavedEvents] = useState([]);
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const [feedTime, setFeedTime] = useState(null);
+  const [now, setNow] = useState(Date.now);
+  const [libraryError, setLibraryError] = useState('');
   const [account, setAccount] = useState(undefined);
   const [allHotspots, setAllHotspots] = useState([]);
   const [selectedHotspot, setSelectedHotspot] = useState(null);
@@ -106,6 +117,7 @@ function App() {
         const events = viewMode === 'RADAR'
           ? (response.data.items || []).map(item => eventToHotspot(item.event, item))
           : (response.data.events || []).map(event => eventToHotspot(event));
+        setFeedTime(response.data.generatedAt || null);
         setAllHotspots(events);
       })
       .catch(error => {
@@ -113,7 +125,36 @@ function App() {
       });
   }, [viewMode, userId]);
 
-  useEffect(() => loadEvents(), [loadEvents, refreshKey]);
+  useEffect(() => {
+    loadEvents();
+    const interval = window.setInterval(() => { setNow(Date.now()); loadEvents(); }, 60_000);
+    return () => window.clearInterval(interval);
+  }, [loadEvents, refreshKey]);
+
+  const loadSaved = useCallback(async () => {
+    if (!userId) return;
+    try {
+      const response = await axios.get(`/api/users/${encodeURIComponent(userId)}/saved-events`);
+      setSavedEvents(response.data);
+      setLibraryError('');
+    } catch { setLibraryError('Could not load saved news. Reopen your library to retry.'); }
+  }, [userId]);
+  useEffect(() => {
+    const initial = window.setTimeout(loadSaved, 0);
+    return () => window.clearTimeout(initial);
+  }, [loadSaved]);
+  const saveEvent = useCallback(async eventId => {
+    const response = await axios.put(`/api/users/${encodeURIComponent(userId)}/saved-events/${encodeURIComponent(eventId)}`);
+    setSavedEvents(response.data);
+  }, [userId]);
+  const archiveEvent = useCallback(async (eventId, archived) => {
+    const response = await axios.patch(`/api/users/${encodeURIComponent(userId)}/saved-events/${encodeURIComponent(eventId)}`, { archived });
+    setSavedEvents(response.data);
+  }, [userId]);
+  const removeSavedEvent = useCallback(async eventId => {
+    const response = await axios.delete(`/api/users/${encodeURIComponent(userId)}/saved-events/${encodeURIComponent(eventId)}`);
+    setSavedEvents(response.data);
+  }, [userId]);
 
   useEffect(() => {
     if (!userId) return undefined;
@@ -200,6 +241,8 @@ function App() {
     const csrf = await axios.get(`${API_BASE}/api/auth/csrf`);
     axios.defaults.headers.common[csrf.data.headerName] = csrf.data.token;
     setAccount(null);
+    setSavedEvents([]);
+    setLibraryOpen(false);
     setProfile(null);
     setNotifications([]);
     setUnreadCount(0);
@@ -219,20 +262,14 @@ function App() {
   const filteredHotspots = useMemo(() => {
     if (allHotspots.length === 0) return [];
     
-    // Find the newest article timestamp to act as "Now"
-    let latestTimestamp = 0;
-    allHotspots.forEach(h => {
-        h.articles.forEach(a => {
-            if (a.timestamp > latestTimestamp) latestTimestamp = a.timestamp;
-        });
-    });
-    
-    const cutoffTime = latestTimestamp - (hoursRange * 60 * 60 * 1000);
+    // Live uses wall-clock time; the dated preview has an explicit snapshot clock.
+    const referenceTime = previewMode && feedTime ? Date.parse(feedTime) : now;
+    const cutoffTime = referenceTime - (hoursRange * 60 * 60 * 1000);
 
     return allHotspots
       .map(hotspot => {
         // Filter articles inside the hotspot by time
-        const validArticles = hotspot.articles.filter(a => a.timestamp >= cutoffTime);
+        const validArticles = hotspot.articles.filter(a => a.timestamp >= cutoffTime && a.timestamp <= referenceTime);
         return { ...hotspot, articles: validArticles };
       })
       .filter(hotspot => {
@@ -246,7 +283,7 @@ function App() {
         if (selectedCategory !== 'ALL' && hotspot.category !== selectedCategory) return false;
         return true;
       });
-  }, [allHotspots, hoursRange, selectedCategory]);
+  }, [allHotspots, hoursRange, selectedCategory, feedTime, now]);
 
   if (account === undefined) {
     return <main className="auth-loading-screen"><i /><span>Resolving your NewsMap</span></main>;
@@ -266,9 +303,10 @@ function App() {
 
   return (
     <div className="app-container">
+      {previewMode && <div className="preview-banner">Feedback preview · Snapshot: {feedTime ? new Date(feedTime).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'loading…'} · Follows and reviews stay in this browser · No live updates</div>}
       <div className="app-header">
         <div className="brand-block">
-          <span className="brand-kicker"><i /> Live event atlas</span>
+          <span className="brand-kicker"><i /> {previewMode ? 'Event atlas preview' : 'Live event atlas'}</span>
           <span className="app-logo">NEWSMAP</span>
           <span className="header-scope">
             {viewMode === 'RADAR' ? 'Personal radar' : 'World desk'} · {filteredHotspots.length} signals
@@ -290,14 +328,22 @@ function App() {
           <span className="notification-label">Updates</span>
           <b>{unreadCount > 99 ? '99+' : unreadCount}</b>
         </button>
+        <button className="account-trigger" onClick={() => { setLibraryOpen(true); loadSaved(); }}>
+          <span>Saved news</span><b>{savedEvents.length}</b>
+        </button>
         <button className="account-trigger" onClick={signOut} title="Sign out">
           <span>{account.displayName}</span>
           <b>Sign out</b>
         </button>
-        <button className="engine-trigger" onClick={() => setEngineOpen(open => !open)}>
+        {!previewMode && <button className="engine-trigger" onClick={() => setEngineOpen(open => !open)}>
           <span>Engine</span><b>Health →</b>
-        </button>
+        </button>}
       </div>
+
+      {libraryOpen && <SavedLibrary items={savedEvents} onClose={() => setLibraryOpen(false)}
+        onOpen={event => { setSelectedHotspot(eventToHotspot(event)); setLibraryOpen(false); }}
+        onArchive={archiveEvent} onRemove={removeSavedEvent} />}
+      {libraryOpen && libraryError && <div role="alert" className="library-load-error">{libraryError}</div>}
 
       <EnginePanel open={engineOpen} onClose={() => setEngineOpen(false)} />
 
@@ -333,6 +379,8 @@ function App() {
         onClose={() => setSelectedHotspot(null)} 
         onFollow={follow}
         onQualityFeedback={submitQualityFeedback}
+        onSave={saveEvent}
+        savedIds={savedEvents.map(item => item.eventId)}
       />
     </div>
   );

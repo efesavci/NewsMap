@@ -14,6 +14,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import analysis.enrichment.OpenRouterEnricher;
 
 /** Adds product-facing location and category fields to the persistent event projection. */
 public final class EventLocationEnricher {
@@ -41,6 +42,20 @@ public final class EventLocationEnricher {
                 event.put("locationMethod", location.method());
                 event.put("category", categorize(event, articles));
                 if (!"unresolved".equals(location.method())) resolved++;
+            }
+
+            if (OpenRouterEnricher.configured()) {
+                try {
+                    var enrichment = new OpenRouterEnricher();
+                    var now = Instant.now();
+                    var recent = new ArrayList<ObjectNode>();
+                    for (var event : events) if (OpenRouterEnricher.recent(event, now)) recent.add((ObjectNode)event);
+                    recent.sort(java.util.Comparator.comparing(event -> !"unresolved".equals(event.path("locationMethod").asText())));
+                    for (var event : recent) enrichment.enrich(event);
+                    System.out.println("[Enrichment] " + enrichment.summary());
+                } catch (Exception error) {
+                    System.err.println("[Enrichment] Could not initialize optional enrichment; local results retained.");
+                }
             }
 
             feed.put("locationGeneratedAt", Instant.now().toString());

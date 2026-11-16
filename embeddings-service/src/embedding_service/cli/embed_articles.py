@@ -18,6 +18,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--model-name", type=str, default=None)
     parser.add_argument("--batch-size", type=int, default=None)
     parser.add_argument("--max-length", type=int, default=None)
+    parser.add_argument("--device", choices=["auto", "cpu", "cuda", "mps"], default=None)
     parser.add_argument("--log-level", type=str, default=None)
     return parser
 
@@ -34,6 +35,7 @@ def main() -> None:
         batch_size=int(pick(args.batch_size, conf, "embedding.batch_size", 4)),
         max_length=int(pick(args.max_length, conf, "embedding.max_length", 4096)),
         trust_remote_code=bool(pick(None, conf, "embedding.trust_remote_code", True)),
+        device=pick(args.device, conf, "embedding.device", None),
         normalize_newlines=bool(pick(None, conf, "embedding.normalize_newlines", True)),
     )
     print(json.dumps(result, indent=2))

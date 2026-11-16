@@ -7,6 +7,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 
 import java.io.File;
 import java.io.IOException;
@@ -17,6 +18,7 @@ import java.util.concurrent.Executors;
 import crawler.CrawlerBuilder.CrawlResult;
 
 @Component
+@ConditionalOnProperty(name = "newsmap.pipeline.enabled", havingValue = "true", matchIfMissing = true)
 @EnableScheduling
 public class PipelineScheduler {
 
@@ -35,52 +37,11 @@ public class PipelineScheduler {
 
     @EventListener(ApplicationReadyEvent.class)
     public void onStartup() {
-        Path hotspotsPath = Path.of("data/hotspots.json");
-        Path clustersPath = Path.of("embeddings-service/outputs/clusters.csv");
-        Path eventsPath = Path.of("embeddings-service/outputs/events.json");
-
-        if (Files.exists(eventsPath)) {
-            executor.submit(() -> {
-                try {
-                    analysis.EventLocationEnricher.enrichAndSave();
-                    notifications.refreshAllUsers();
-                } catch (Exception e) {
-                    System.err.println("[PipelineScheduler] Error locating existing events: " + e.getMessage());
-                }
-            });
-        }
-
-        boolean hotspotsNeedRefresh = !Files.exists(hotspotsPath) || !hasLocationConfidence(hotspotsPath);
-        if (hotspotsNeedRefresh) {
-            System.out.println("[PipelineScheduler] Hotspots are missing or use an older geotag format.");
-            if (Files.exists(clustersPath)) {
-                System.out.println("[PipelineScheduler] Found existing clusters.csv. Geotagging initial clusters in the background...");
-                executor.submit(() -> {
-                    try {
-                        analysis.ClusterInspector.precomputeAndSaveHotspots();
-                    } catch (Exception e) {
-                        System.err.println("[PipelineScheduler] Error geocoding initial clusters on startup: " + e.getMessage());
-                    }
-                });
-            } else {
-                System.out.println("[PipelineScheduler] No clusters found. Running initial news gathering pipeline in the background...");
-                runPipelineAsync("STARTUP");
-            }
-        } else {
-            System.out.println("[PipelineScheduler] Existing precomputed hotspots found. Ready immediately. Background refresh uses the configured schedule.");
-        }
+        // Resume pending input on restart even if no new URLs can be fetched.
+        runPipelineAsync("STARTUP");
     }
 
-    private boolean hasLocationConfidence(Path hotspotsPath) {
-        if (!Files.exists(hotspotsPath)) return false;
-        try {
-            return Files.readString(hotspotsPath).contains("\"locationConfidence\"");
-        } catch (IOException e) {
-            return false;
-        }
-    }
-
-    @Scheduled(cron = "${newsmap.pipeline.cron:0 */15 * * * *}")
+    @Scheduled(cron = "${newsmap.pipeline.cron:0 0 */2 * * *}", zone = "${newsmap.pipeline.zone:UTC}")
     public void runScheduled() {
         System.out.println("[PipelineScheduler] Running scheduled incremental news gathering pipeline...");
         runPipelineAsync("SCHEDULED");
@@ -110,70 +71,36 @@ public class PipelineScheduler {
         String runId = pipelineRuns.start(trigger, before);
         CrawlResult crawlResult = null;
         try {
-            System.out.println("[Pipeline] Step 1/6: Running Java Crawler...");
-            // Clean old articles
-            File articleDir = new File("data/articles");
-            if (articleDir.exists()) {
-                File[] files = articleDir.listFiles();
-                if (files != null) {
-                    for (File f : files) {
-                        f.delete();
-                    }
+            ArticleBatchQueue queue = new ArticleBatchQueue(Path.of("data/articles"), Path.of("data/article-batches"));
+            // Recover leftovers from an interrupted crawl before writing new input.
+            queue.capture();
+            Exception failure = null;
+            try {
+                CrawlerBuilder builder = new CrawlerBuilder(maxArticlesPerSource, true);
+                crawlResult = builder.startCrawl();
+            } catch (Exception crawlFailure) {
+                failure = crawlFailure;
+                System.err.println("[Pipeline] Crawl failed; processing retained input anyway: " + crawlFailure.getMessage());
+            }
+            queue.capture();
+            var batches = queue.pending();
+            int completed = 0;
+            for (var batch : batches) {
+                try {
+                    processBatch(batch);
+                    queue.complete(batch);
+                    completed++;
+                } catch (Exception batchFailure) {
+                    failure = batchFailure;
+                    System.err.println("[Pipeline] Retaining batch for retry: " + batch.directory() + ": " + batchFailure.getMessage());
                 }
             }
-            
-            CrawlerBuilder builder = new CrawlerBuilder(maxArticlesPerSource, true);
-            crawlResult = builder.startCrawl();
-            int newArticleCount = crawlResult.fetched();
-            System.out.println("[Pipeline] Step 1/6: Java Crawler completed with " + newArticleCount + " new articles.");
-
-            if (newArticleCount == 0) {
-                System.out.println("[Pipeline] No new articles. Skipping embedding and event matching for this run.");
+            if (failure != null) throw failure;
+            if (completed == 0) {
                 pipelineRuns.finish(runId, "NO_CHANGES", crawlResult, eventSnapshot(), null);
                 return;
             }
 
-            // Activate virtual env and run Python embedding & clustering
-            System.out.println("[Pipeline] Step 2/6: Generating Embeddings (Python)...");
-            runPythonScript("embedding_service.cli.embed_articles", 
-                    "--config", "configs/default.yaml", 
-                    "--input-dir", "../data/articles", 
-                    "--output-h5", "outputs/articles.h5", 
-                    "--batch-size", "4");
-
-            System.out.println("[Pipeline] Step 3/6: Matching Articles to Persistent Events...");
-            runPythonScript("embedding_service.cli.match_events",
-                    "--input-h5", "outputs/articles.h5",
-                    "--state-db", "outputs/events.db",
-                    "--output-json", "outputs/events.json",
-                    "--threshold", "0.82",
-                    "--active-window-hours", "336");
-
-            System.out.println("[Pipeline] Step 4/6: Resolving Persistent Event Locations...");
-            analysis.EventLocationEnricher.enrichAndSave();
-            notifications.refreshAllUsers();
-
-            // HDBSCAN is retained only as an offline quality comparison while
-            // the current globe still consumes the legacy hotspot projection.
-            System.out.println("[Pipeline] Step 5/6: Running Offline HDBSCAN Quality Pass...");
-            runPythonScript("embedding_service.cli.cluster_articles", 
-                    "--config", "configs/default.yaml", 
-                    "--input-h5", "outputs/articles.h5", 
-                    "--output-clusters", "outputs/clusters.csv", 
-                    "--reducer", "umap", 
-                    "--reducer-n-components", "12", 
-                    "--reducer-n-neighbors", "10", 
-                    "--reducer-min-dist", "0.0", 
-                    "--reducer-metric", "cosine", 
-                    "--clusterer", "hdbscan", 
-                    "--hdbscan-min-cluster-size", "4", 
-                    "--hdbscan-min-samples", "2",
-                    "--hdbscan-cluster-selection-method", "leaf");
-
-            System.out.println("[Pipeline] Step 6/6: Geotagging Legacy Globe Clusters...");
-            analysis.ClusterInspector.precomputeAndSaveHotspots();
-
-            System.out.println("[Pipeline] Pipeline execution finished successfully!");
             pipelineRuns.finish(runId, "SUCCEEDED", crawlResult, eventSnapshot(), null);
         } catch (Exception e) {
             System.err.println("[Pipeline] Error running pipeline: " + e.getMessage());
@@ -184,6 +111,25 @@ public class PipelineScheduler {
                 System.err.println("[Pipeline] Could not record failed run: " + recordError.getMessage());
             }
         }
+    }
+
+    private void processBatch(ArticleBatchQueue.Batch batch) throws Exception {
+        if (!Files.exists(batch.embeddings())) {
+            runPythonScript("embedding_service.cli.embed_articles",
+                    "--config", "configs/default.yaml",
+                    "--input-dir", batch.input().toAbsolutePath().toString(),
+                    "--output-h5", batch.embeddings().toAbsolutePath().toString(),
+                    "--batch-size", "4");
+        } else {
+            System.out.println("[Pipeline] Reusing completed embeddings: " + batch.embeddings());
+        }
+        runPythonScript("embedding_service.cli.match_events",
+                "--input-h5", batch.embeddings().toAbsolutePath().toString(),
+                "--state-db", "outputs/events.db", "--output-json", "outputs/events.json",
+                "--threshold", "0.82", "--active-window-hours", "336");
+        analysis.EventLocationEnricher.enrichAndSave();
+        notifications.refreshAllUsers();
+        // UMAP/HDBSCAN remains available through its CLI for offline quality analysis.
     }
 
     private PipelineRunStore.EventSnapshot eventSnapshot() {
@@ -223,6 +169,7 @@ public class PipelineScheduler {
         // Add src to PYTHONPATH so python can locate the embedding_service package
         String pythonPath = new File("embeddings-service/src").getAbsolutePath();
         pb.environment().put("PYTHONPATH", pythonPath);
+        pb.environment().remove("OPENROUTER_API_KEY");
         
         pb.redirectErrorStream(true);
         pb.inheritIO(); // forward stdout/stderr to main console

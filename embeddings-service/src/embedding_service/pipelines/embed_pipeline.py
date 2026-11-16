@@ -20,6 +20,7 @@ def run_embed_pipeline(
     max_length: int,
     trust_remote_code: bool,
     normalize_newlines: bool = True,
+    device: str | None = None,
 ) -> dict:
     """Run end-to-end embedding generation.
 
@@ -27,8 +28,8 @@ def run_embed_pipeline(
     """
     articles = load_articles(input_dir=input_dir, normalize_newlines=normalize_newlines)
     texts = [f"{article.title or ''}\n\n{article.body[:MAX_BODY_CHARS]}".strip() for article in articles]
-    embedder = JinaEmbedder(model_name=model_name, trust_remote_code=trust_remote_code, max_length=max_length)
+    embedder = JinaEmbedder(model_name=model_name, trust_remote_code=trust_remote_code, max_length=max_length, device=device)
     vectors = embedder.embed(texts=texts, batch_size=batch_size)
     save_embeddings_h5(path=output_h5, articles=articles, vectors=vectors)
     logger.info("Embedded %s articles -> %s", len(articles), output_h5)
-    return {"num_articles": len(articles), "embedding_dim": int(vectors.shape[1]), "output_h5": output_h5}
+    return {"num_articles": len(articles), "embedding_dim": int(vectors.shape[1]), "output_h5": output_h5, "device": embedder.device}
