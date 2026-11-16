@@ -29,7 +29,10 @@ public record EventFeedDTO(
             List<String> sources,
             List<String> entities,
             List<EventUpdateDTO> updates,
-            List<EventArticleDTO> articles
+            List<EventArticleDTO> articles,
+            List<String> tags,
+            String locationScope,
+            List<Map<String, String>> locationEvidence
     ) {}
 
     public record EventUpdateDTO(
@@ -48,6 +51,7 @@ public record EventFeedDTO(
             String url,
             String publishTime,
             double matchScore,
-            Map<String, Double> matchSignals
+            Map<String, Double> matchSignals,
+            String excerpt
     ) {}
 }

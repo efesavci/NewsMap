@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import os
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -19,21 +21,30 @@ def save_embeddings_h5(path: str, articles: list[Article], vectors: np.ndarray) 
     """
     output = Path(path)
     output.parent.mkdir(parents=True, exist_ok=True)
-    with h5py.File(output, "w") as h5f:
-        for article, vector in zip(articles, vectors, strict=True):
-            embedding_id = article.article_id or "unknown"
-            dataset = h5f.create_dataset(embedding_id, data=vector.astype("float32"), dtype="float32")
-            if article.article_id:
-                dataset.attrs["article_id"] = article.article_id
-            if article.title is not None:
-                dataset.attrs["title"] = article.title
-            if article.source is not None:
-                dataset.attrs["source"] = article.source
-            for key, value in article.metadata.items():
-                if isinstance(value, (str, int, float, bool)):
-                    dataset.attrs[key] = value
-                else:
-                    dataset.attrs[key] = json.dumps(value)
+    descriptor, name = tempfile.mkstemp(dir=output.parent, suffix=".h5.tmp")
+    os.close(descriptor)
+    temporary = Path(name)
+    try:
+        with h5py.File(temporary, "w") as h5f:
+            for article, vector in zip(articles, vectors, strict=True):
+                embedding_id = article.article_id or "unknown"
+                dataset = h5f.create_dataset(embedding_id, data=vector.astype("float32"), dtype="float32")
+                if article.article_id:
+                    dataset.attrs["article_id"] = article.article_id
+                if article.title is not None:
+                    dataset.attrs["title"] = article.title
+                if article.source is not None:
+                    dataset.attrs["source"] = article.source
+                for key, value in article.metadata.items():
+                    if isinstance(value, (str, int, float, bool)):
+                        dataset.attrs[key] = value
+                    else:
+                        dataset.attrs[key] = json.dumps(value)
+        with temporary.open("rb") as handle:
+            os.fsync(handle.fileno())
+        os.replace(temporary, output)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def load_embeddings_h5(path: str) -> tuple[np.ndarray, list[str], list[dict[str, Any]]]:

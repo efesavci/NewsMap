@@ -12,10 +12,12 @@ function confidenceLabel(value = 0) {
   return 'Review suggested';
 }
 
-function EventGroup({ group, stacked, onFollow, onQualityFeedback }) {
+function EventGroup({ group, stacked, onFollow, onQualityFeedback, onSave, savedIds }) {
   const reports = [...(group.articles || [])].sort((a, b) => a.timestamp - b.timestamp);
   const sources = [...new Set(reports.map(article => cleanSource(article.source)))];
   const [savedFollow, setSavedFollow] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
   const [reviewed, setReviewed] = useState({});
   const recentChanges = [...(group.updates || [])].reverse().slice(0, 4);
 
@@ -54,12 +56,28 @@ function EventGroup({ group, stacked, onFollow, onQualityFeedback }) {
         </div>
       </div>
 
+      {group.tags?.length > 0 && <>
+        <div className="event-section-label">Topics</div>
+        <div className="source-chips">{group.tags.map(tag => <span className="source-chip" key={tag}>{tag.replaceAll('-', ' ')}</span>)}</div>
+      </>}
+      {group.locationEvidence?.length > 0 && <>
+        <div className="event-section-label">Location evidence</div>
+        {group.locationEvidence.map((item, index) => <blockquote className="location-evidence" key={`${item.articleId}-${index}`}>
+          {item.quote}
+        </blockquote>)}
+      </>}
       <div className="event-section-label">Source comparison</div>
       <div className="source-chips">
         {sources.map(source => <span className="source-chip" key={source}>{source}</span>)}
       </div>
 
+      {saveError && <p role="alert">{saveError}</p>}
       <div className="event-actions" aria-label="Follow event interests">
+        <button disabled={saving || savedIds.includes(group.eventId)} onClick={async () => {
+          setSaving(true); setSaveError('');
+          try { await onSave(group.eventId); } catch { setSaveError('Could not save this story. Please try again.'); }
+          finally { setSaving(false); }
+        }}>{savedIds.includes(group.eventId) ? 'Saved to library' : saving ? 'Saving…' : 'Save story'}</button>
         <button onClick={() => follow('EVENT', group.eventId)}>
           {savedFollow === `EVENT:${group.eventId}` ? 'Following event' : 'Follow event'}
         </button>
@@ -140,7 +158,7 @@ function EventGroup({ group, stacked, onFollow, onQualityFeedback }) {
   );
 }
 
-export default function HotspotSidebar({ hotspot, onClose, onFollow, onQualityFeedback }) {
+export default function HotspotSidebar({ hotspot, onClose, onFollow, onQualityFeedback, onSave, savedIds }) {
   const isOpen = !!hotspot;
   const eventGroups = hotspot?.containedHotspots || [hotspot];
   const stacked = !!hotspot?.locationStack;
@@ -157,7 +175,9 @@ export default function HotspotSidebar({ hotspot, onClose, onFollow, onQualityFe
               </div>
               {!stacked && (
                 <div className="event-location">
-                  {hotspot.location} · {Math.round(hotspot.locationConfidence * 100)}% location confidence
+                  {hotspot.location} · {hotspot.locationMethod === 'openrouter'
+                    ? `AI-assigned · ${(hotspot.locationScope || 'unknown').toLowerCase()} level`
+                    : `${Math.round(hotspot.locationConfidence * 100)}% location confidence`}
                 </div>
               )}
             </div>
@@ -168,7 +188,7 @@ export default function HotspotSidebar({ hotspot, onClose, onFollow, onQualityFe
 
           <div className="sidebar-content">
             {eventGroups.map(group => (
-              <EventGroup group={group} stacked={stacked} onFollow={onFollow} onQualityFeedback={onQualityFeedback} key={group.eventId || group.eventTitle} />
+              <EventGroup group={group} stacked={stacked} onFollow={onFollow} onQualityFeedback={onQualityFeedback} onSave={onSave} savedIds={savedIds} key={group.eventId || group.eventTitle} />
             ))}
           </div>
         </>

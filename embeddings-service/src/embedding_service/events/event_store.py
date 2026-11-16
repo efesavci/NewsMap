@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import os
+import tempfile
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -77,6 +79,10 @@ class EventStore:
         self.connection = sqlite3.connect(self.path)
         self.connection.row_factory = sqlite3.Row
         self.connection.executescript(SCHEMA)
+        columns = {row[1] for row in self.connection.execute("PRAGMA table_info(event_articles)")}
+        if "excerpt" not in columns:
+            self.connection.execute("ALTER TABLE event_articles ADD COLUMN excerpt TEXT NOT NULL DEFAULT ''")
+            self.connection.commit()
 
     def close(self) -> None:
         self.connection.close()
@@ -102,6 +108,12 @@ class EventStore:
             "SELECT * FROM events WHERE status IN ('ACTIVE', 'DORMANT')"
         ).fetchall()
         return [self._event_for_matching(row) for row in rows]
+
+    def matching_event(self, event_id: str) -> dict:
+        row = self.connection.execute("SELECT * FROM events WHERE event_id = ?", (event_id,)).fetchone()
+        if row is None:
+            raise KeyError(event_id)
+        return self._event_for_matching(row)
 
     def create_event(self, *, event_id: str, article: dict, vector: np.ndarray) -> None:
         now = utc_now()
@@ -263,13 +275,25 @@ class EventStore:
                     "source": article["source"],
                     "url": article["url"],
                     "publishTime": article["publish_time"],
+                    "excerpt": article["excerpt"],
                     "matchScore": round(float(article["match_score"]), 6),
                     "matchSignals": json.loads(article["match_signals"]),
                 } for article in article_rows],
             })
 
         projection = {"generatedAt": utc_now(), "engineVersion": engine_version, "events": events}
-        output.write_text(json.dumps(projection, indent=2, ensure_ascii=False), encoding="utf-8")
+        # Readers always see a complete projection, including when a worker crashes.
+        temporary = None
+        try:
+            with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=output.parent, delete=False) as handle:
+                temporary = Path(handle.name)
+                json.dump(projection, handle, indent=2, ensure_ascii=False)
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temporary, output)
+        finally:
+            if temporary is not None:
+                temporary.unlink(missing_ok=True)
         return projection
 
     def _append_update(
@@ -296,11 +320,11 @@ class EventStore:
     ) -> None:
         self.connection.execute(
             """INSERT INTO event_articles (
-                article_id, event_id, title, source, url, publish_time, matched_at, match_score, match_signals
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                article_id, event_id, title, source, url, publish_time, matched_at, match_score, match_signals, excerpt
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 article["article_id"], event_id, article["title"], article["source"], article.get("url"),
-                article["publish_time"], utc_now(), score, json.dumps(signals, sort_keys=True),
+                article["publish_time"], utc_now(), score, json.dumps(signals, sort_keys=True), article.get("excerpt", "")[:800],
             ),
         )
 

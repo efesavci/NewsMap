@@ -1,3 +1,5 @@
+import { previewMode } from '../previewApi';
+
 export default function TimelineSlider({ hoursRange, setHoursRange }) {
   const sliderValue = -hoursRange;
 
@@ -17,7 +19,7 @@ export default function TimelineSlider({ hoursRange, setHoursRange }) {
       />
       <div className="timeline-labels">
         <span>Earlier</span>
-        <span>Live edge</span>
+        <span>{previewMode ? 'Snapshot edge' : 'Now'}</span>
       </div>
     </div>
   );

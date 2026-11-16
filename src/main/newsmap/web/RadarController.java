@@ -38,6 +38,7 @@ public class RadarController {
                 .orElse(Instant.now());
 
         List<RadarItemDTO> items = feed.events().stream()
+                .filter(event -> EventWindow.isRecent(event, Instant.now()))
                 .filter(event -> "ACTIVE".equals(event.status()))
                 .filter(event -> event.lat() != null && event.lon() != null)
                 .filter(event -> !(event.lat() == 0 && event.lon() == 0))

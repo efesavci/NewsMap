@@ -47,6 +47,9 @@ public class Crawler {
     @Nullable
     private final Writer batchFileWriter;
 
+    @Nullable
+    private final FileOutputStream batchStream;
+
     public Crawler(
             SiteConfig config,
             int maxArticlesToFetch,
@@ -71,10 +74,12 @@ public class Crawler {
                 batchFile.getParentFile().mkdirs();
                 batchFile.createNewFile();
             }
-            this.batchFileWriter = new BufferedWriter(new FileWriter(batchFile, true));
+            this.batchStream = new FileOutputStream(batchFile, true);
+            this.batchFileWriter = new BufferedWriter(new OutputStreamWriter(batchStream, java.nio.charset.StandardCharsets.UTF_8));
         } else {
             this.batchFile = null;
             this.batchFileWriter = null;
+            this.batchStream = null;
         }
     }
 
@@ -168,6 +173,11 @@ public class Crawler {
                         // case PARQUET -> article.appendToParquetBatch();
                     }
 
+                    // Persist the input before declaring its canonical URL fetched.
+                    if (batchFileWriter != null) {
+                        batchFileWriter.flush();
+                        batchStream.getFD().sync();
+                    }
                     ledger.record(article);
 
                     crawler_info("Saved article: " + articleUrl);

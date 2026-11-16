@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import axios from 'axios';
 import './AuthScreen.css';
+import { previewMode } from '../previewApi';
 
 export default function AuthScreen({ apiBase, onAuthenticated }) {
   const [mode, setMode] = useState('signup');
@@ -41,6 +42,15 @@ export default function AuthScreen({ apiBase, onAuthenticated }) {
     setMode(nextMode);
     setError('');
   };
+
+  if (previewMode) return (
+    <main className="auth-shell"><section className="auth-intro"><div>
+      <p className="auth-eyebrow">Feedback preview · Saved news snapshot</p>
+      <h1>Follow events.<br />Not the noise.</h1>
+      <p className="auth-copy">Explore NewsMap as a guest. Your follows and reviews stay in this browser. Live news, accounts and delivery alerts are unavailable in this preview.</p>
+      <button className="auth-submit" onClick={() => onAuthenticated({ userId: 'preview', displayName: 'Guest' })}>Explore NewsMap →</button>
+    </div></section></main>
+  );
 
   return (
     <main className="auth-shell">

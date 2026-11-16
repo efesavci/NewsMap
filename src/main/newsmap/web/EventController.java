@@ -26,6 +26,7 @@ public class EventController {
     ) {
         EventFeedDTO feed = readFeed();
         List<EventDTO> filtered = feed.events().stream()
+                .filter(event -> EventWindow.isRecent(event, java.time.Instant.now()))
                 .filter(event -> status.isBlank() || event.status().equalsIgnoreCase(status))
                 .filter(event -> event.articleCount() >= Math.max(1, minArticles))
                 .toList();
